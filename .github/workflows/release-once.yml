@@ -1,0 +1,62 @@
+# One-off: build GlobalS.html from this commit — refusing unless the app code is identical to
+# main's — and publish it as the latest release and to the app branch (which the small GlobalS
+# starter file loads). Needed once because the first Publish run's release was skipped when
+# CelesTrak refused its runner. Remove this file after it has run.
+name: Release GlobalS.html (one-off)
+
+on:
+  push:
+    branches: ['claude/**']
+    paths:
+      - '.github/workflows/release-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: The app code is exactly main's
+        run: |
+          git diff --quiet origin/main HEAD -- index.html manifest.webmanifest sw.js css js vendor assets tools/build-single.mjs tools/check-imports.mjs \
+            || { echo "::error::The app code differs from main."; git diff --stat origin/main HEAD; exit 1; }
+      - name: Test
+        run: node --test "tests/**/*.test.mjs"
+      - name: Build GlobalS.html
+        run: node tools/build-single.mjs --out dist/GlobalS.html
+      - name: Open it from file:// in Chrome, with live data
+        run: node tools/smoke-single.mjs dist/GlobalS.html --require-data
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(node -p "require('fs').readFileSync('js/config.js', 'utf8').match(/APP_VERSION = '([^']+)'/)[1]")
+          tag="v$version"
+          if ! gh release view "$tag" -R "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release create "$tag" -R "$GITHUB_REPOSITORY" --target "$(git rev-parse origin/main)" \
+              --title "GlobalS $version for Windows" --notes-file .github/release-notes.md
+          fi
+          gh release upload "$tag" dist/GlobalS.html -R "$GITHUB_REPOSITORY" --clobber
+          echo "Download: https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/GlobalS.html" >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish to the app branch (loaded by the GlobalS starter file)
+        run: |
+          build=$(grep -o 'GlobalS single-file build [0-9a-f]*' dist/GlobalS.html | awk '{print $4}')
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -q --orphan app-publish
+          git rm -rq --cached .
+          cp dist/GlobalS.html GlobalS.html
+          cp .github/app-branch-README.md README.md
+          git add GlobalS.html README.md
+          git commit -q -m "GlobalS single-file build $build (main $(git rev-parse --short origin/main))"
+          git push --force origin HEAD:refs/heads/app
+      - name: Refresh the jsDelivr copy (best effort)
+        run: curl -fsS -m 20 -o /dev/null "https://purge.jsdelivr.net/gh/${GITHUB_REPOSITORY}@app/GlobalS.html" || echo "::notice::jsDelivr purge didn't go through."
