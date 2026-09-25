@@ -1,0 +1,176 @@
+# Publishes GlobalS:
+#   data     CelesTrak → the `data` branch, which the app reads through raw.githubusercontent.com
+#            (or jsDelivr). Every run; each CelesTrak group is downloaded at most once per 2-hour
+#            update cycle, as CelesTrak asks, and falls back to the previous data if unreachable.
+#   release  dist/GlobalS.html, the download-and-double-click version → the latest GitHub release.
+#            On pushes and manual runs (the file doesn't change on the schedule).
+#   pages    the web version, only if Settings → Pages → Source is "GitHub Actions"; skipped
+#            (not failed) otherwise.
+#
+# Runs on every push to main, every 6 hours, and on demand (Actions → Publish GlobalS → Run
+# workflow). GitHub pauses scheduled workflows after 60 days without repository activity; if the
+# app's data badge turns red, re-enable this workflow from the Actions tab.
+name: Publish GlobalS
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '41 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      force_fetch:
+        description: Download from CelesTrak even if the current data is under 2 hours old
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+jobs:
+  data:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write # pushes the data branch
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Test
+        run: node --test "tests/**/*.test.mjs"
+      - name: Previous data (for the 2-hour rule, and as the fallback)
+        run: |
+          mkdir -p _previous
+          if git fetch --depth=1 origin data 2>/dev/null; then
+            git archive FETCH_HEAD | tar -x -C _previous
+          else
+            echo "No data branch yet — first run."
+          fi
+      - name: Fetch orbital data from CelesTrak
+        env:
+          FORCE: ${{ inputs.force_fetch && '--force' || '' }}
+        run: node tools/fetch-celestrak.mjs --out _data --previous _previous $FORCE
+      - name: Refuse to publish a near-empty catalogue
+        run: |
+          node -e '
+            const m = require("./_data/manifest.json");
+            if (!(m.counts?.objects >= 1000)) {
+              console.log(`::error::Only ${m.counts?.objects ?? 0} objects — keeping the current data.`);
+              process.exit(1);
+            }
+            console.log(`${m.counts.objects} objects, version ${m.version}`);'
+      - name: Describe the catalogue
+        run: node tools/describe-data.mjs _data >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish to the data branch (one commit, replaced each time)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -q --orphan data-publish
+          git rm -rq --cached .
+          cp _data/manifest.json _data/catalog.json _data/groups.json .
+          cp .github/data-branch-README.md README.md
+          git add manifest.json catalog.json groups.json README.md
+          git commit -q -m "Orbital data from CelesTrak, $(node -p 'require("./_data/manifest.json").generatedAt')"
+          git push --force origin HEAD:refs/heads/data
+      - name: Refresh the jsDelivr copy (best effort)
+        run: |
+          for f in manifest.json catalog.json groups.json; do
+            curl -fsS -m 20 -o /dev/null "https://purge.jsdelivr.net/gh/${GITHUB_REPOSITORY}@data/$f" \
+              || echo "::notice::jsDelivr purge of $f didn't go through; its copy refreshes within 12 hours anyway."
+          done
+      - uses: actions/upload-artifact@v7
+        with:
+          name: data
+          path: _data
+          retention-days: 1
+
+  release:
+    needs: data
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write # creates the release
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Build GlobalS.html
+        run: node tools/build-single.mjs --out dist/GlobalS.html
+      - name: Open it from file:// in Chrome, with live data
+        run: node tools/smoke-single.mjs dist/GlobalS.html --require-data
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(node -p "require('fs').readFileSync('js/config.js', 'utf8').match(/APP_VERSION = '([^']+)'/)[1]")
+          tag="v$version"
+          if ! gh release view "$tag" -R "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release create "$tag" -R "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+              --title "GlobalS $version for Windows" --notes-file .github/release-notes.md
+          fi
+          gh release upload "$tag" dist/GlobalS.html -R "$GITHUB_REPOSITORY" --clobber
+          echo "Download: https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/GlobalS.html" >> "$GITHUB_STEP_SUMMARY"
+
+  pages-check:
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: read
+    outputs:
+      enabled: ${{ steps.check.outputs.enabled }}
+    steps:
+      - id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh api "repos/${GITHUB_REPOSITORY}/pages" --silent 2> /dev/null; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::GitHub Pages is off, so only the data feed and the download were published. For the web version too, set Settings → Pages → Source to GitHub Actions."
+          fi
+
+  pages:
+    needs: [data, pages-check]
+    if: needs.pages-check.outputs.enabled == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - uses: actions/configure-pages@v6
+      - name: Stage the site
+        run: node tools/stage-site.mjs _site
+      - uses: actions/download-artifact@v8
+        with:
+          name: data
+          path: _site/data
+      - name: Stamp the service worker
+        run: node tools/stamp-sw.mjs _site
+      - name: Check the site
+        run: node tools/check-imports.mjs --root _site --precache
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v5

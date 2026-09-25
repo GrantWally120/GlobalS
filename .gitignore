@@ -1,0 +1,11 @@
+# Generated at deploy time by .github/workflows/publish.yml — never committed.
+/_site/
+/data/
+
+# Local tooling leftovers
+node_modules/
+.DS_Store
+*.log
+
+# The downloadable single-file build (tools/build-single.mjs), built by CI.
+/dist/

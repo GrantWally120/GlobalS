@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>GlobalS — Global Satellite Tracker</title>
+  <meta name="description" content="Every active satellite in real time on a 3D globe, with pass predictions for your sky. Orbits from CelesTrak, computed with SGP4.">
+  <meta name="theme-color" content="#02040a">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="assets/icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="assets/icons/icon-180.png">
+  <link rel="stylesheet" href="css/globals.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "./vendor/three/build/three.module.js",
+      "three/addons/": "./vendor/three/examples/jsm/"
+    }
+  }
+  </script>
+  <link rel="modulepreload" href="vendor/three/build/three.module.js">
+  <link rel="modulepreload" href="vendor/three/build/three.core.js">
+  <link rel="modulepreload" href="js/main.js">
+</head>
+<body>
+
+<!-- ============ BOOT ============ -->
+<div id="boot" role="status" aria-live="polite">
+  <div class="boot-globe" aria-hidden="true">
+    <div class="orbit-ring r1"></div>
+    <div class="orbit-ring r2"></div>
+    <div class="sat-dot sat-a"></div>
+    <div class="sat-dot sat-b"></div>
+    <div class="sat-dot sat-c"></div>
+    <svg viewBox="-100 -100 200 200" fill="none" stroke="#4ff0ff" stroke-width="0.5">
+      <circle r="90" stroke-width="1" opacity="0.9"/>
+      <ellipse rx="90" ry="20" opacity="0.5"/><ellipse rx="90" ry="40" opacity="0.4"/>
+      <ellipse rx="90" ry="60" opacity="0.35"/><ellipse rx="90" ry="80" opacity="0.3"/>
+      <ellipse rx="20" ry="90" opacity="0.5"/><ellipse rx="40" ry="90" opacity="0.4"/>
+      <ellipse rx="60" ry="90" opacity="0.35"/><ellipse rx="80" ry="90" opacity="0.3"/>
+      <line x1="-90" x2="90" opacity="0.6" stroke-dasharray="2 3"/>
+      <line y1="-90" y2="90" opacity="0.6" stroke-dasharray="2 3"/>
+    </svg>
+  </div>
+  <div class="brand"><b>G</b>lobal<b>S</b><span class="dots" id="bootDots"></span></div>
+  <div class="tagline">Global Satellite Tracking System</div>
+  <div class="progress-shell"><div class="progress-bar" id="bootBar"></div></div>
+  <div class="progress-meta"><span id="bootPhase">STARTING</span><span class="pct" id="bootPct">0%</span></div>
+  <div class="boot-log" id="bootLog"></div>
+  <div class="boot-error" id="bootError" hidden></div>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="app" aria-hidden="true">
+  <canvas id="scene" tabindex="0" aria-label="3D globe with satellites. Click a satellite to select it."></canvas>
+  <div id="labels" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <div class="logo">GLOBAL<b>S</b><span class="ver" id="appVersion"></span></div>
+    <nav class="tabs" role="tablist" aria-label="Views">
+      <button role="tab" id="tab-tracking" aria-controls="view-tracking" aria-selected="true" data-tab="tracking">Tracking</button>
+      <button role="tab" id="tab-passes" aria-controls="view-passes" aria-selected="false" data-tab="passes">Passes</button>
+      <button role="tab" id="tab-sky" aria-controls="view-sky" aria-selected="false" data-tab="sky">Sky</button>
+      <button role="tab" id="tab-data" aria-controls="view-data" aria-selected="false" data-tab="data">Data</button>
+    </nav>
+    <div class="top-right">
+      <span class="badge optional" id="dataBadge" title="Age of the orbital data">DATA —</span>
+      <span class="badge live" id="timeBadge" title="LIVE: real time. SIMULATED: you have moved the clock."><span class="dot"></span><span id="timeBadgeText">LIVE</span></span>
+      <button class="icon-btn" id="installBtn" hidden>Install</button>
+      <button class="icon-btn" id="helpBtn" aria-label="Help and keyboard shortcuts" title="Help (?)">?</button>
+    </div>
+  </header>
+
+  <aside class="panel" id="leftPanel" aria-label="Controls">
+    <!-- TRACKING -->
+    <section id="view-tracking" role="tabpanel" aria-labelledby="tab-tracking">
+      <div class="search">
+        <input id="search" type="search" autocomplete="off" spellcheck="false"
+               placeholder="Name, NORAD or COSPAR ID…" aria-label="Search satellites"
+               aria-controls="searchResults" aria-autocomplete="list">
+      </div>
+      <div class="panel-scroll" style="flex:1">
+        <ul class="results" id="searchResults" role="listbox" aria-label="Search results"></ul>
+        <h3>Layers <span class="aside" id="layersTotal"></span></h3>
+        <ul class="layers" id="layers"></ul>
+        <h3>Display</h3>
+        <div class="segmented" role="group" aria-label="Globe style">
+          <button id="styleHolo" aria-pressed="true">Holographic</button>
+          <button id="stylePhoto" aria-pressed="false">Photoreal</button>
+        </div>
+        <div class="toggles" id="toggles"></div>
+        <h3>Telemetry</h3>
+        <div class="stats">
+          <div class="stat"><div class="lbl">Objects</div><div class="val cyan" id="stTotal">—</div></div>
+          <div class="stat"><div class="lbl">Shown</div><div class="val" id="stShown">—</div></div>
+          <div class="stat"><div class="lbl">Sunlit</div><div class="val amber" id="stLit">—</div></div>
+          <div class="stat"><div class="lbl">Overhead</div><div class="val green" id="stOverhead">—</div></div>
+          <div class="stat"><div class="lbl">Median age</div><div class="val" id="stAge">—</div></div>
+          <div class="stat"><div class="lbl">Frame rate</div><div class="val" id="stFps">—</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PASSES -->
+    <section id="view-passes" role="tabpanel" aria-labelledby="tab-passes" hidden>
+      <h3>Your location</h3>
+      <form class="form" id="locationForm">
+        <label class="wide">Place<input id="locName" maxlength="60"></label>
+        <label>Latitude (°N)<input id="locLat" inputmode="decimal"></label>
+        <label>Longitude (°E)<input id="locLon" inputmode="decimal"></label>
+        <label>Height (m)<input id="locH" inputmode="decimal"></label>
+        <label>Min elevation<select id="locMinEl"><option>0</option><option>5</option><option selected>10</option><option>20</option><option>30</option></select></label>
+        <div class="wide form-actions">
+          <button type="submit" class="btn primary">Save</button>
+          <button type="button" class="btn" id="locGeo">Use my location</button>
+          <button type="button" class="btn" id="locCebu">Cebu City</button>
+        </div>
+      </form>
+      <h3>Tonight's visible passes <span class="aside" id="tonightInfo"></span></h3>
+      <div class="panel-scroll" style="flex:1"><ul class="passlist" id="tonightList"></ul></div>
+    </section>
+
+    <!-- SKY -->
+    <section id="view-sky" role="tabpanel" aria-labelledby="tab-sky" hidden>
+      <h3>Your sky now <span class="aside" id="skyInfo"></span></h3>
+      <div class="radar-wrap"><svg class="radar" id="skyRadar" viewBox="-130 -130 260 260" role="img" aria-label="Satellites above your horizon"></svg>
+        <div class="radar-caption" id="skyCaption"></div></div>
+      <h3>Overhead <span class="aside" id="overheadCount"></span></h3>
+      <div class="panel-scroll" style="flex:1"><ul class="rowlist results" id="overheadList"></ul></div>
+    </section>
+
+    <!-- DATA -->
+    <section id="view-data" role="tabpanel" aria-labelledby="tab-data" hidden>
+      <div class="panel-scroll" style="flex:1">
+        <h3>Orbital data</h3>
+        <dl class="kv" id="dataInfo"></dl>
+        <div id="dataNotes"></div>
+        <h3>Import elements</h3>
+        <div class="text"><p>Load OMM JSON (e.g. CelesTrak <span class="mono">FORMAT=json</span>) or TLE text. Drop a file anywhere, or:</p></div>
+        <div class="actions">
+          <input type="file" id="importFile" accept=".json,.txt,.tle,.3le,application/json,text/plain" hidden>
+          <button class="btn" id="importBtn">Choose file…</button>
+          <label class="btn"><input type="checkbox" id="importReplace"> Replace catalogue</label>
+        </div>
+        <div id="importReport"></div>
+        <h3>This app</h3>
+        <dl class="kv" id="appInfo"></dl>
+        <div class="actions">
+          <button class="btn" id="resetBtn" title="Removes the offline copy of GlobalS and its data, then reloads">Reset app cache</button>
+        </div>
+        <h3>Accuracy</h3>
+        <div class="text" id="accuracyText"></div>
+        <h3>Credits</h3>
+        <div class="text" id="creditsText"></div>
+      </div>
+    </section>
+  </aside>
+
+  <aside class="panel" id="detailPanel" aria-label="Selected satellite" hidden>
+    <div class="detail-head">
+      <span class="swatch" id="dSwatch"></span>
+      <div style="flex:1;min-width:0">
+        <div class="detail-name" id="dName">—</div>
+        <div class="detail-meta" id="dMeta"></div>
+      </div>
+      <button class="close-btn" id="dClose" aria-label="Close">×</button>
+    </div>
+    <div class="panel-scroll" style="flex:1">
+      <div class="actions" id="dActions">
+        <button class="btn" id="dFollow" aria-pressed="false" title="Follow (F)">Follow</button>
+        <button class="btn" id="dCenter">Centre</button>
+        <button class="btn" id="dPasses">Passes</button>
+      </div>
+      <dl class="kv" id="dKv"></dl>
+      <div id="dNotes"></div>
+      <h3>Next passes <span class="aside" id="dPassInfo"></span></h3>
+      <ul class="passlist" id="dPassList"></ul>
+      <div class="radar-wrap" id="dRadarWrap" hidden>
+        <svg class="radar" id="dRadar" viewBox="-130 -130 260 260" role="img" aria-label="Pass across the sky"></svg>
+        <div class="radar-caption" id="dRadarCaption"></div>
+      </div>
+    </div>
+  </aside>
+
+  <footer class="panel" id="timebar" aria-label="Time">
+    <div class="clock-cell"><div class="lbl">UTC</div><div class="val cyan" id="cUtc">--:--:--</div><div class="date" id="cUtcDate"></div></div>
+    <div class="clock-cell"><div class="lbl" id="cLocalLbl">Local</div><div class="val" id="cLocal">--:--:--</div><div class="date" id="cLocalDate"></div></div>
+    <div class="clock-cell opt"><div class="lbl">GMST</div><div class="val" id="cGmst">--:--:--</div></div>
+    <div class="clock-cell lst"><div class="lbl">LST</div><div class="val" id="cLst">--:--:--</div></div>
+    <div class="clock-cell opt"><div class="lbl">Julian Date</div><div class="val" id="cJd">--</div></div>
+    <div class="time-controls">
+      <button id="tBack" title="Back one hour (Shift+←)" aria-label="Back one hour">−1h</button>
+      <button id="tSlower" title="Slower / reverse ([)" aria-label="Slower">«</button>
+      <button id="tPlay" title="Pause / play (Space)" aria-label="Pause">❚❚</button>
+      <button id="tFaster" title="Faster (])" aria-label="Faster">»</button>
+      <button id="tFwd" title="Forward one hour (Shift+→)" aria-label="Forward one hour">+1h</button>
+      <span class="rate" id="tRate" aria-live="polite">1×</span>
+      <input type="datetime-local" id="tJump" step="1" aria-label="Jump to date and time">
+      <button class="now-btn" id="tNow" title="Back to now (N)">NOW</button>
+    </div>
+  </footer>
+
+  <div id="chips" aria-live="polite"></div>
+  <div id="toasts" aria-live="polite"></div>
+
+  <dialog class="panel" id="helpDialog" aria-labelledby="helpTitle">
+    <h3 id="helpTitle">GlobalS — help <span class="aside"><button class="close-btn" id="helpClose" aria-label="Close">×</button></span></h3>
+    <div class="text">
+      <p>Every dot is a real, active satellite, positioned with SGP4 from public orbital data (CelesTrak). Drag to rotate, scroll to zoom, click a dot to select it.</p>
+    </div>
+    <div class="shortcuts">
+      <kbd>/</kbd><span>Search</span>
+      <kbd>Space</kbd><span>Pause / play time</span>
+      <kbd>[</kbd> <kbd>]</kbd><span>Slower / faster (below 0 runs backwards)</span>
+      <kbd>Shift</kbd>+<kbd>←</kbd><kbd>→</kbd><span>Step one hour</span>
+      <kbd>N</kbd><span>Back to now</span>
+      <kbd>F</kbd><span>Follow the selected satellite</span>
+      <kbd>O</kbd><span>Orbit and ground track</span>
+      <kbd>V</kbd><span>Holographic / photoreal globe</span>
+      <kbd>C</kbd><span>Constellation lines</span>
+      <kbd>G</kbd><span>Latitude/longitude grid</span>
+      <kbd>R</kbd><span>Reset the view</span>
+      <kbd>Esc</kbd><span>Deselect</span>
+    </div>
+  </dialog>
+
+  <div id="dropOverlay" hidden>Drop OMM JSON or TLE file</div>
+</div>
+
+<noscript><p style="position:fixed;inset:0;display:grid;place-items:center;color:#4ff0ff">GlobalS needs JavaScript and WebGL 2.</p></noscript>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

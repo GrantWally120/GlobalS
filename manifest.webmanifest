@@ -1,0 +1,50 @@
+{
+  "id": "/GlobalS/",
+  "name": "GlobalS — Global Satellite Tracker",
+  "short_name": "GlobalS",
+  "description": "Every active satellite in real time on a 3D globe, with pass predictions and a sky radar for your location. Orbits from CelesTrak, computed with SGP4.",
+  "lang": "en",
+  "dir": "ltr",
+  "start_url": "./?source=pwa",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
+  "background_color": "#02040a",
+  "theme_color": "#02040a",
+  "categories": ["education", "utilities"],
+  "icons": [
+    { "src": "assets/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "assets/icons/icon-48.png", "sizes": "48x48", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icon-96.png", "sizes": "96x96", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icon-256.png", "sizes": "256x256", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Visible passes tonight",
+      "short_name": "Passes",
+      "description": "Satellites you can see from your location over the next two nights",
+      "url": "./?tab=passes",
+      "icons": [{ "src": "assets/icons/icon-96.png", "sizes": "96x96", "type": "image/png" }]
+    },
+    {
+      "name": "What's overhead now",
+      "short_name": "Sky",
+      "description": "Sky radar of every satellite above your horizon",
+      "url": "./?tab=sky",
+      "icons": [{ "src": "assets/icons/icon-96.png", "sizes": "96x96", "type": "image/png" }]
+    }
+  ],
+  "launch_handler": { "client_mode": ["focus-existing", "auto"] },
+  "file_handlers": [
+    {
+      "action": "./?source=file",
+      "accept": {
+        "text/plain": [".tle", ".3le", ".txt"],
+        "application/json": [".json"]
+      }
+    }
+  ]
+}

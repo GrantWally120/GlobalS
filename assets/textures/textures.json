@@ -1,0 +1,28 @@
+{
+  "note": "Written by tools/fetch-textures.mjs",
+  "fetchedAt": "2026-09-25T12:56:05.414Z",
+  "textures": {
+    "day": {
+      "file": "earth-day.jpg",
+      "title": "Blue Marble: Next Generation with topography and bathymetry",
+      "credit": "NASA Earth Observatory (Reto Stöckli, NASA GSFC); Blue Marble Next Generation, 2004",
+      "source": "https://eoimages.gsfc.nasa.gov/images/imagerecords/73000/73751/world.topo.bathy.200407.3x5400x2700.jpg",
+      "license": "Public domain (NASA)",
+      "width": 5400,
+      "height": 2700,
+      "bytes": 2308798,
+      "sha256": "4f4240673a3a1b173d61b92ca4b07bac5fd17059ea5f725ba6da5a9c5386b7ba"
+    },
+    "night": {
+      "file": "earth-night.jpg",
+      "title": "Black Marble 2016 — Earth at night (0.1° grid)",
+      "credit": "NASA Earth Observatory (Joshua Stevens, Miguel Román, NASA GSFC); Suomi NPP VIIRS, 2016",
+      "source": "https://assets.science.nasa.gov/content/dam/science/esd/eo/images/imagerecords/144000/144898/BlackMarble_2016_01deg.jpg",
+      "license": "Public domain (NASA)",
+      "width": 3600,
+      "height": 1800,
+      "bytes": 779638,
+      "sha256": "d87de751a264e4f8ff69c68de5dab9606daee87a6f15ae743c93200743bd7ec1"
+    }
+  }
+}

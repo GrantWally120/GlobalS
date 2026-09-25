@@ -1,0 +1,47 @@
+# Runs the CelesTrak relay once on a GitHub runner WITHOUT deploying, and reports what came back
+# (group counts, categories, name prefixes, element ages) in the run summary. Triggered when the
+# relay itself changes on a claude/** branch, or manually. The previous run's output is cached so
+# the relay's 2-hour reuse guard also applies across these checks (CelesTrak's
+# one-download-per-update-cycle rule).
+name: Check CelesTrak data
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ['claude/**']
+    paths:
+      - 'tools/fetch-celestrak.mjs'
+      - '.github/workflows/data-check.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: data-check
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Restore the previous check's data
+        uses: actions/cache/restore@v5
+        with:
+          path: .data-check
+          key: data-check-${{ github.run_id }}
+          restore-keys: data-check-
+      - name: Fetch from CelesTrak (reusing anything fetched under 2 h ago)
+        run: node tools/fetch-celestrak.mjs --out .data-check-new --previous .data-check
+      - name: Describe the catalogue
+        run: node tools/describe-data.mjs .data-check-new | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Keep this output for the next check
+        run: rm -rf .data-check && mv .data-check-new .data-check
+      - uses: actions/cache/save@v5
+        with:
+          path: .data-check
+          key: data-check-${{ github.run_id }}

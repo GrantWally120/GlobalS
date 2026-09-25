@@ -1,0 +1,103 @@
+{
+ "schema": 1,
+ "version": "1b6c08ae1496",
+ "generatedAt": "2026-09-24T12:00:00.000Z",
+ "source": {
+  "name": "CelesTrak",
+  "url": "https://celestrak.org/NORAD/elements/",
+  "note": "General perturbations (GP) orbital data in CCSDS OMM form, originally from the U.S. Space Force (18th/19th SDS) via Space-Track.org."
+ },
+ "files": {
+  "catalog": "catalog.json?v=1b6c08ae1496",
+  "groups": "groups.json?v=1b6c08ae1496"
+ },
+ "counts": {
+  "objects": 7
+ },
+ "epoch": {
+  "min": "2026-09-24T12:00:00.123Z",
+  "median": "2026-09-24T12:00:00.123Z",
+  "max": "2026-09-24T12:00:00.123Z"
+ },
+ "dropped": {
+  "invalid": 0,
+  "propagation": 0
+ },
+ "groups": {
+  "active": {
+   "status": "fresh",
+   "count": 7,
+   "fetchedAt": "2026-09-24T12:00:00.000Z",
+   "attemptedAt": null
+  },
+  "stations": {
+   "status": "fresh",
+   "count": 1,
+   "fetchedAt": "2026-09-24T12:00:00.000Z",
+   "attemptedAt": null
+  },
+  "visual": {
+   "status": "fresh",
+   "count": 3,
+   "fetchedAt": "2026-09-24T12:00:00.000Z",
+   "attemptedAt": null
+  },
+  "gps-ops": {
+   "status": "fresh",
+   "count": 1,
+   "fetchedAt": "2026-09-24T12:00:00.000Z",
+   "attemptedAt": null
+  },
+  "glo-ops": {
+   "status": "invalid",
+   "count": 0,
+   "fetchedAt": null,
+   "attemptedAt": null
+  },
+  "galileo": {
+   "status": "invalid",
+   "count": 0,
+   "fetchedAt": null,
+   "attemptedAt": null
+  },
+  "beidou": {
+   "status": "invalid",
+   "count": 0,
+   "fetchedAt": null,
+   "attemptedAt": null
+  },
+  "weather": {
+   "status": "fresh",
+   "count": 1,
+   "fetchedAt": "2026-09-24T12:00:00.000Z",
+   "attemptedAt": null
+  },
+  "resource": {
+   "status": "invalid",
+   "count": 0,
+   "fetchedAt": null,
+   "attemptedAt": null
+  },
+  "science": {
+   "status": "invalid",
+   "count": 0,
+   "fetchedAt": null,
+   "attemptedAt": null
+  },
+  "amateur": {
+   "status": "invalid",
+   "count": 0,
+   "fetchedAt": null,
+   "attemptedAt": null
+  },
+  "last-30-days": {
+   "status": "invalid",
+   "count": 0,
+   "fetchedAt": null,
+   "attemptedAt": null
+  }
+ },
+ "demo": true,
+ "synthetic": 6000,
+ "note": "DEMO DATA for local development and tests: REF-* reference orbits plus synthetic objects. Never deployed."
+}
