@@ -1,0 +1,37 @@
+# Runs GlobalS's checks on every push and pull request. Plain Node — nothing to install.
+name: Test
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Unit tests (maths checked against Skyfield and Vallado, data relay, service worker)
+        run: node --test "tests/**/*.test.mjs"
+      - name: Module graph
+        run: node tools/check-imports.mjs
+      - name: Vendored libraries unchanged
+        run: node tools/vendor.mjs --check
+      - name: The site as deployed is complete and works offline
+        run: |
+          node tools/stage-site.mjs _site
+          node tools/stamp-sw.mjs _site
+          node tools/check-imports.mjs --root _site --precache

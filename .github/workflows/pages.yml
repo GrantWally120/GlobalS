@@ -1,0 +1,79 @@
+# Publishes GlobalS to GitHub Pages with fresh orbital data from CelesTrak.
+#
+# Runs on every push to main, every 6 hours, and on demand (Actions → Deploy GlobalS → Run workflow).
+# CelesTrak updates its data every 2 hours and asks for no more than one download per group per
+# update; the relay reuses anything the live site fetched less than 2 hours ago, so pushes in
+# between never re-download. If CelesTrak can't be reached, each group falls back to the data
+# already on the site.
+#
+# One-time setup: Settings → Pages → Build and deployment → Source: "GitHub Actions".
+# GitHub pauses scheduled workflows after 60 days without repository activity; re-enable this one
+# from the Actions tab if the app's data badge turns red.
+name: Deploy GlobalS
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '41 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      force_fetch:
+        description: Download from CelesTrak even if the site's data is under 2 hours old
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Test
+        run: node --test "tests/**/*.test.mjs"
+      - id: pages
+        uses: actions/configure-pages@v6
+      - name: Stage the site
+        run: node tools/stage-site.mjs _site
+      - name: Fetch orbital data from CelesTrak
+        env:
+          PREVIOUS: ${{ steps.pages.outputs.base_url }}/data
+          FORCE: ${{ inputs.force_fetch && '--force' || '' }}
+        run: node tools/fetch-celestrak.mjs --out _site/data --previous "$PREVIOUS" $FORCE
+      - name: Refuse to publish a near-empty catalogue
+        run: |
+          node -e '
+            const m = require("./_site/data/manifest.json");
+            if (!(m.counts?.objects >= 1000)) {
+              console.log(`::error::Only ${m.counts?.objects ?? 0} objects — keeping the site as it is.`);
+              process.exit(1);
+            }
+            console.log(`${m.counts.objects} objects, version ${m.version}`);'
+      - name: Describe the catalogue
+        run: node tools/describe-data.mjs _site/data >> "$GITHUB_STEP_SUMMARY"
+      - name: Stamp the service worker
+        run: node tools/stamp-sw.mjs _site
+      - name: Check the site
+        run: node tools/check-imports.mjs --root _site --precache
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v5
