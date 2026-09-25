@@ -1,7 +1,10 @@
-// Installable app: the Install button, the service worker and the update prompt.
+// Installable app: the Install button, the service worker, the update prompt and offline data.
 
 import { $ } from './dom.js';
 import { toast } from './toasts.js';
+
+let swEnabled = false;
+let development = false;
 
 export function initInstall({ isLocal, params }) {
   let deferred = null;
@@ -23,9 +26,20 @@ export function initInstall({ isLocal, params }) {
     toast('GlobalS is installed — find it in your Start menu or pin it to the taskbar.');
   });
 
-  if (!('serviceWorker' in navigator) || (isLocal && !params.has('sw'))) return;
+  // Local development serves unstamped files; ?sw=1 tests the real thing against a staged site.
+  development = isLocal && !params.has('sw');
+  if (!('serviceWorker' in navigator) || development) return;
+  swEnabled = true;
+  // The first worker to take control of this page is the one just installed on a first visit —
+  // nothing to reload for. Any later change of control is an update, and the page must reload so
+  // its code matches the new cache.
+  let controlled = !!navigator.serviceWorker.controller;
   let reloading = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!controlled) {
+      controlled = true;
+      return;
+    }
     if (reloading) return;
     reloading = true;
     location.reload();
@@ -46,4 +60,42 @@ export function initInstall({ isLocal, params }) {
   }).catch(() => {
     // offline support is a bonus; the app works without it
   });
+}
+
+/** Ask the service worker to keep this exact data snapshot for starting offline. */
+export async function keepDataOffline(manifestUrl, manifest, files) {
+  if (!swEnabled) return;
+  const reg = await navigator.serviceWorker.ready;
+  reg.active?.postMessage({ type: 'KEEP_DATA', manifestUrl, manifest, files });
+}
+
+/**
+ * The running build (version.json is written at deploy; a service worker serves its own copy) and
+ * whether GlobalS can start offline: 'ready' | 'pending' (first visit, still caching) |
+ * 'unsupported' | 'off' (development).
+ */
+export async function buildInfo() {
+  if (development) return { version: null, offline: 'off' };
+  let version = null;
+  try {
+    const res = await fetch('version.json', { cache: 'no-cache' });
+    if (res.ok) version = (await res.json()).version ?? null;
+  } catch {
+    // offline without a service worker
+  }
+  const offline = !swEnabled ? 'unsupported' : navigator.serviceWorker.controller ? 'ready' : 'pending';
+  return { version, offline };
+}
+
+/** Last resort for a stuck installation: forget the service worker and every cached file. */
+export async function resetAppCache() {
+  if ('serviceWorker' in navigator) {
+    // Other sites can share this origin (every project page on a github.io account does).
+    const scope = new URL('./', location.href).href;
+    for (const reg of await navigator.serviceWorker.getRegistrations()) if (reg.scope === scope) await reg.unregister();
+  }
+  if ('caches' in window) {
+    for (const key of await caches.keys()) if (key.startsWith('globals-')) await caches.delete(key);
+  }
+  location.reload();
 }

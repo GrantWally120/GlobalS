@@ -12,7 +12,7 @@ import { makeObserver } from './core/look.js';
 import { gmstFromMs, recFromAny } from './core/sat.js';
 import { sunDirEci } from './core/sun.js';
 import { parseTimeParam } from './core/time.js';
-import { dataAgeHours, resolveData } from './data/loader.js';
+import { FROM_CACHE_HEADER, dataAgeHours, resolveData } from './data/loader.js';
 import { createAtmosphere } from './render/atmosphere.js';
 import { CameraModes } from './render/camera-modes.js';
 import { createEarth, fallbackDayTexture, loadTexture } from './render/earth.js';
@@ -26,7 +26,7 @@ import { createBoot } from './ui/boot.js';
 import { initDataView } from './ui/data-view.js';
 import { initDetails } from './ui/details.js';
 import { $, $$, setText } from './ui/dom.js';
-import { initInstall } from './ui/install.js';
+import { buildInfo, initInstall, keepDataOffline, resetAppCache } from './ui/install.js';
 import { initKeyboard } from './ui/keyboard.js';
 import { initPassesView } from './ui/passes-view.js';
 import { initSkyView } from './ui/sky-view.js';
@@ -195,12 +195,20 @@ async function start() {
     if (activeTab === 'sky') skyView.update(res);
   }
 
-  function applyCatalog(meta) {
+  /** Swap in a new catalogue. The selected satellite stays selected (and followed) if it's still in it. */
+  function applyCatalog(meta, { keepId = null } = {}) {
+    const again = keepId === null ? -1 : meta.ids.indexOf(keepId);
+    const had = app.selected >= 0;
     app.meta = meta;
     app.selected = -1;
     app.selectedRec = app.selectedRecord = null;
     selection.set(null);
-    details.hide();
+    if (had && again < 0) {
+      details.hide();
+      labels.remove('sel');
+      if (cams.mode === 'follow') app.toggleFollow();
+      updateHash();
+    }
     app.searchIndex = buildSearchIndex(meta.names, meta.ids, meta.cospars);
     swarm.setCatalog(meta, app.categoryKeys);
     swarm.setShown(shownMask());
@@ -210,10 +218,70 @@ async function start() {
     tonightAt = -Infinity;
     if (activeTab === 'passes') requestTonight();
     refreshOverhead();
+    if (again >= 0) app.select(again, { reveal: false }); // don't reopen a details panel the user closed
+  }
+
+  const selectedId = () => (app.selected >= 0 ? app.meta.ids[app.selected] : null);
+
+  /** Load a manifest's catalogue into the worker; same-site data is then kept for offline starts. */
+  async function loadCatalog(data, synthetic = 0) {
+    const catalogUrl = new URL(data.manifest.files.catalog, data.base).href;
+    const groupsUrl = new URL(data.manifest.files.groups, data.base).href;
+    const meta = await propagator.call('load', { catalogUrl, groupsUrl, synthetic });
+    if (data.source === 'site') keepDataOffline(new URL('manifest.json', data.base).href, data.manifest, [catalogUrl, groupsUrl]).catch(() => {});
+    return meta;
+  }
+
+  // The site republishes the data every 6 hours; an app left open picks that up by itself.
+  let lastDataCheck = Date.now();
+  let checkingData = false;
+  let offeredVersion = null;
+  async function checkForNewData() {
+    if (checkingData || !app.data || !['site', 'feed'].includes(app.source)) return;
+    checkingData = true;
+    lastDataCheck = Date.now();
+    try {
+      const res = await fetch(new URL('manifest.json', app.data.base), { cache: 'no-cache' });
+      if (!res.ok || res.headers.get(FROM_CACHE_HEADER)) return; // offline: the cached copy is what we have
+      const manifest = await res.json();
+      const current = app.data.manifest;
+      if (!manifest?.files?.catalog || manifest.version === current.version) return;
+      if (!(Date.parse(manifest.generatedAt) > Date.parse(current.generatedAt))) return;
+      const next = { ...app.data, manifest };
+      if (app.imported) {
+        if (offeredVersion === manifest.version) return;
+        offeredVersion = manifest.version;
+        toast('Newer orbital data is available. Loading it drops the elements you imported.', {
+          timeout: 0, action: { label: 'Load it', onClick: () => swapData(next) },
+        });
+        return;
+      }
+      await swapData(next);
+    } catch {
+      // offline or the site is mid-deploy; try again later
+    } finally {
+      checkingData = false;
+    }
+  }
+
+  async function swapData(next) {
+    let meta;
+    try {
+      meta = await loadCatalog(next);
+    } catch (err) {
+      toast(`Newer orbital data couldn't be loaded (${err.message}); keeping the current data.`, { kind: 'warn' });
+      return;
+    }
+    app.data = next;
+    app.source = next.source;
+    app.imported = false;
+    applyCatalog(meta, { keepId: selectedId() });
+    refreshDataView();
+    toast(`Orbital data updated: ${fmtInt(meta.count)} objects, published ${fmtAge(dataAgeHours(next.manifest, clock.realNow()))}.`);
   }
 
   function refreshDataView() {
-    dataView.setData({ data: app.data, meta: app.meta, source: app.source, clockOffsetMs: clock.offsetMs, now: clock.realNow() });
+    dataView.setData({ data: app.data, meta: app.meta, source: app.source, clockOffsetMs: clock.offsetMs, now: clock.realNow(), build: app.buildInfo });
     const badge = $('#dataBadge');
     if (app.source === 'demo') {
       badge.className = 'badge optional demo';
@@ -229,7 +297,7 @@ async function start() {
   }
 
   Object.assign(app, {
-    async select(i, { focus = false, passAt } = {}) {
+    async select(i, { focus = false, passAt, reveal = true } = {}) {
       if (!app.meta || i < 0 || i >= app.meta.count) return;
       app.poke?.();
       app.selected = i;
@@ -242,7 +310,7 @@ async function start() {
       const color = CATEGORY_STYLE[app.categoryKeys[app.meta.cats[i]]]?.color;
       selection.set(rec, '#ffb547');
       swarm.setShown(shownMask());
-      details.show(i);
+      if (reveal || !$('#detailPanel').hidden) details.show(i);
       labels.set('sel', {
         text: app.meta.names[i], sub: `NORAD ${app.meta.ids[i]}`, className: '',
         getWorld: (v) => (selection.marker.visible ? (v.copy(selection.position), true) : false),
@@ -376,12 +444,18 @@ async function start() {
       if (app.selectedRecord) requestPasses();
     },
     async importText(text, mode) {
+      const keepId = selectedId();
       const meta = await propagator.call('import', { text, mode });
       if (mode === 'replace' || !app.meta) app.source = 'import';
-      applyCatalog(meta);
+      app.imported = true;
+      applyCatalog(meta, { keepId });
       refreshDataView();
+      // A small file (one satellite's elements, say) is about those satellites: show the first.
+      if (meta.imported <= 20 && meta.importedIds?.length) app.selectById(meta.importedIds[0]);
       return meta;
     },
+    resetAppCache,
+    checkForNewData,
   });
 
   for (const b of $$('.tabs button')) b.addEventListener('click', () => app.showTab(b.dataset.tab));
@@ -410,11 +484,7 @@ async function start() {
     boot.progress(45, 'SATELLITE CATALOGUE');
     const synthetic = Number(params.get('synthetic') ?? (data.manifest.demo ? data.manifest.synthetic : 0)) || 0;
     try {
-      const meta = await propagator.call('load', {
-        catalogUrl: new URL(data.manifest.files.catalog, data.base).href,
-        groupsUrl: new URL(data.manifest.files.groups, data.base).href,
-        synthetic,
-      });
+      const meta = await loadCatalog(data, synthetic);
       applyCatalog(meta);
       const age = dataAgeHours(data.manifest, clock.realNow());
       boot.log(data.source === 'demo' ? 'warn' : 'ok', data.source === 'demo'
@@ -544,17 +614,50 @@ async function start() {
 
   setInterval(refreshOverhead, 2000);
   setInterval(refreshDataView, 60_000);
+  setInterval(checkForNewData, 30 * 60e3);
+  window.addEventListener('online', () => checkForNewData());
   // After sleep or a long background stint, a live view snaps back to real time.
   let wasLive = clock.isLive(5000);
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
       wasLive = clock.isLive(5000);
-    } else if (wasLive) {
+      return;
+    }
+    if (wasLive) {
       clock.backToNow();
       swarm.invalidate();
       refreshOverhead();
     }
+    if (Date.now() - lastDataCheck > 10 * 60e3) checkForNewData();
   });
+  const refreshBuildInfo = () => buildInfo().then((info) => {
+    app.buildInfo = info;
+    refreshDataView();
+  });
+  refreshBuildInfo();
+  navigator.serviceWorker?.addEventListener('controllerchange', refreshBuildInfo); // first install done
+
+  // Start-menu shortcuts (?tab=…) and files opened with GlobalS from Windows (manifest file_handlers).
+  const TABS = ['tracking', 'passes', 'sky', 'data'];
+  const openTab = (url) => {
+    const tab = new URL(url, location.href).searchParams.get('tab');
+    if (TABS.includes(tab)) app.showTab(tab);
+  };
+  openTab(location.href);
+  if ('launchQueue' in window) {
+    window.launchQueue.setConsumer(async (launch) => {
+      if (launch.targetURL) openTab(launch.targetURL);
+      for (const handle of launch.files ?? []) {
+        if (handle.kind !== 'file') continue;
+        app.showTab('data');
+        try {
+          await dataView.importFile(await handle.getFile());
+        } catch (err) {
+          toast(`Couldn’t open ${handle.name}: ${err.message}`, { kind: 'warn' });
+        }
+      }
+    });
+  }
 
   const m = /sat=(\d+)/.exec(location.hash);
   if (m && app.meta) app.selectById(Number(m[1]));

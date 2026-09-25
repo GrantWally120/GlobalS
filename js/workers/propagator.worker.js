@@ -177,7 +177,8 @@ serve({
     if (!incoming.length) throw new Error(problems[0] ?? 'No usable element sets found.');
     const list = m.mode === 'replace' ? incoming : dedupeById(sources.concat(incoming));
     const failed = build(list);
-    return meta({ failed, imported: incoming.length, problems: problems.slice(0, 50), problemCount: problems.length });
+    const importedIds = incoming.slice(0, 20).map((o) => Number(o.NORAD_CAT_ID));
+    return meta({ failed, imported: incoming.length, importedIds, problems: problems.slice(0, 50), problemCount: problems.length });
   },
 
   keys(m) {

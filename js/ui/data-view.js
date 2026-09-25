@@ -1,6 +1,6 @@
 // Data view: where the orbits come from and how fresh they are, file import, accuracy and credits.
 
-import { DATA_AGE } from '../config.js';
+import { APP_VERSION, DATA_AGE } from '../config.js';
 import { fmtAge, fmtInt } from '../core/format.js';
 import { $, el, fillKv } from './dom.js';
 import { toast } from './toasts.js';
@@ -11,6 +11,13 @@ const SOURCE_LABEL = {
   demo: 'DEMO data (reference orbits + synthetic shells)',
   import: 'Imported file',
   none: 'None',
+};
+
+const OFFLINE_LABEL = {
+  ready: 'Ready — starts without internet',
+  pending: 'Setting up in the background…',
+  unsupported: 'Not available in this browser',
+  off: 'Off in development',
 };
 
 export function initDataView(app) {
@@ -62,6 +69,10 @@ export function initDataView(app) {
     }
   });
 
+  $('#resetBtn').onclick = () => {
+    if (window.confirm('Reset GlobalS? This removes the offline copy of the app and its data, then reloads. Your location and settings are kept.')) app.resetAppCache();
+  };
+
   $('#accuracyText').replaceChildren(
     el('p', {}, 'Positions come from SGP4, the model the orbital data is made for. Public element sets are typically accurate to about a kilometre near their epoch, drifting by a few kilometres per day for low orbits — so the freshness of the data matters more than anything else.'),
     el('p', {}, 'GlobalS’s own maths is checked against Skyfield and the JPL DE421 ephemeris: pass rise/set times within 0.3 s, peak elevations within 0.005°, the Sun within 0.01°. The SGP4 code reproduces Vallado’s official verification output to 0.2 mm.'),
@@ -82,7 +93,7 @@ export function initDataView(app) {
   return {
     importFile,
     setData(info) {
-      const { data, meta, source, clockOffsetMs, now } = info;
+      const { data, meta, source, clockOffsetMs, now, build } = info;
       const m = data?.manifest;
       const rows = [['Source', SOURCE_LABEL[source] ?? source]];
       if (m) {
@@ -94,6 +105,10 @@ export function initDataView(app) {
       if (meta) rows.push(['Objects', `${fmtInt(meta.count)}${meta.failed ? ` (${meta.failed} unusable)` : ''}`]);
       rows.push(['Your clock', clockOffsetMs ? `${(clockOffsetMs / 1000).toFixed(1)} s ${clockOffsetMs > 0 ? 'slow' : 'fast'} — corrected` : 'OK (within 2 s)', clockOffsetMs ? 'warn' : 'good']);
       fillKv($('#dataInfo'), rows);
+      fillKv($('#appInfo'), [
+        ['GlobalS', build?.version ? `v${APP_VERSION} · build ${build.version.slice(0, 8)}` : `v${APP_VERSION}`],
+        ['Offline', OFFLINE_LABEL[build?.offline] ?? '—', build?.offline === 'ready' ? 'good' : ''],
+      ]);
       const notes = [];
       if (source === 'demo') notes.push(el('div', { class: 'note' }, 'DEMO DATA: live orbital data could not be loaded, so GlobalS is showing reference orbits and synthetic constellations. Positions are not real.'));
       if (!m && source !== 'import') notes.push(el('div', { class: 'note bad' }, 'No orbital data could be loaded. Check your internet connection, or import a TLE / OMM file below (you can download one from celestrak.org in your browser).'));
