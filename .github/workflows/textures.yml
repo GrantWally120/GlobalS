@@ -1,0 +1,46 @@
+# Downloads the NASA imagery for GlobalS's photorealistic globe and commits it to assets/textures/.
+# Runs when the fetch script changes on a claude/** branch, or manually from the Actions tab.
+# (Pushes made with GITHUB_TOKEN never trigger other workflows, so this can't loop.)
+name: Fetch NASA textures
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ['claude/**']
+    paths:
+      - 'tools/fetch-textures.mjs'
+      - '.github/workflows/textures.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: textures-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fetch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Download and validate imagery
+        run: node tools/fetch-textures.mjs --out assets/textures
+      - name: Commit textures to this branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/textures
+          if git diff --cached --quiet; then
+            echo "Textures unchanged."
+            exit 0
+          fi
+          git commit -m "Add NASA Earth imagery for the photorealistic globe"
+          for attempt in 1 2 3; do
+            git pull --rebase origin "${GITHUB_REF_NAME}" && git push origin "HEAD:${GITHUB_REF_NAME}" && exit 0
+            sleep $((attempt * 5))
+          done
+          exit 1
