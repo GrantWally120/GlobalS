@@ -35,3 +35,7 @@ jobs:
           node tools/stage-site.mjs _site
           node tools/stamp-sw.mjs _site
           node tools/check-imports.mjs --root _site --precache
+      - name: The downloadable single file starts from file:// in Chrome
+        run: |
+          node tools/build-single.mjs --out dist/GlobalS.html
+          node tools/smoke-single.mjs dist/GlobalS.html

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Copies exactly the files the deployed app needs into a clean folder (default _site/), which
-// .github/workflows/pages.yml then fills with orbital data, stamps (stamp-sw.mjs) and publishes.
+// .github/workflows/publish.yml then fills with orbital data, stamps (stamp-sw.mjs) and publishes.
 //   node tools/stage-site.mjs [_site]
 // Tests, tools, fixtures and docs stay behind.
 

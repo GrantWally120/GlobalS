@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Relays CelesTrak GP data (OMM JSON) into the GlobalS site, politely. Run by pages.yml.
+// Relays CelesTrak GP data (OMM JSON) into the GlobalS data feed, politely. Run by publish.yml.
 //
 //   node tools/fetch-celestrak.mjs --out _site/data [--previous <deployed data/ URL or local dir>] [--force]
 //   node tools/fetch-celestrak.mjs --out fixtures/data --from-dir <dir with <group>.json files>
