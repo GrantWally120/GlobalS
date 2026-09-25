@@ -30,7 +30,7 @@ jobs:
         with:
           node-version: '22'
       - name: Restore the previous check's data
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: .data-check
           key: data-check-${{ github.run_id }}
@@ -38,10 +38,10 @@ jobs:
       - name: Fetch from CelesTrak (reusing anything fetched under 2 h ago)
         run: node tools/fetch-celestrak.mjs --out .data-check-new --previous .data-check
       - name: Describe the catalogue
-        run: node tools/describe-data.mjs .data-check-new >> "$GITHUB_STEP_SUMMARY"
+        run: node tools/describe-data.mjs .data-check-new | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Keep this output for the next check
         run: rm -rf .data-check && mv .data-check-new .data-check
-      - uses: actions/cache/save@v4
+      - uses: actions/cache/save@v5
         with:
           path: .data-check
           key: data-check-${{ github.run_id }}
