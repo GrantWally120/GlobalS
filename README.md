@@ -2,16 +2,28 @@
 
 Every active satellite in real time on a 3D globe: about 16,800 objects, positioned with SGP4 from
 public orbital data. It predicts passes over your location (Cebu City by default) and shows a
-radar of your sky. It installs as an app on Windows 11 and keeps working offline.
+radar of your sky.
 
-**Open it:** <https://grantwally120.github.io/GlobalS/>
+## Download for Windows
+
+**[Download GlobalS.html](https://github.com/GrantWally120/GlobalS/releases/latest/download/GlobalS.html)**:
+one file (about 8 MB), with nothing to install.
+
+1. Download it. If your browser asks whether to keep it, choose **Keep**; it's a web page, not a
+   program.
+2. Double-click `GlobalS.html`. It opens in Microsoft Edge (or Chrome).
+3. The first start needs internet, for the satellite data. After that it also starts offline, using
+   the last data it downloaded.
+
+The satellite data is refreshed on GitHub every 6 hours, and an open GlobalS picks it up by itself.
+You only need a new copy of the file when there's a new version of GlobalS.
 
 ![Holographic globe with a selected satellite, its orbit, ground track and coverage circle, and its next passes over Cebu City](docs/screenshot-holographic.jpg)
 
 ![Photoreal globe at night over Asia, with the sky radar and the list of satellites above Cebu City](docs/screenshot-photoreal.jpg)
 
 <sub>Screenshots use the built-in demo data (reference orbits plus synthetic constellations), which
-the app labels as such. The live site shows real satellites.</sub>
+the app labels as such. The app itself shows real satellites.</sub>
 
 ## What it does
 
@@ -45,7 +57,10 @@ the app labels as such. The live site shows real satellites.</sub>
 - **Your own data.** Drag in a TLE or OMM JSON file, or right-click one in Explorer and choose
   **Open with GlobalS**.
 
-## Install it on Windows 11
+## The web version (optional)
+
+GlobalS can also run as a website that installs as a Windows app, with Start-menu shortcuts and
+"Open with GlobalS" for TLE files. That needs GitHub Pages switched on (see *How it's published*).
 
 1. Open <https://grantwally120.github.io/GlobalS/> in Microsoft Edge (Chrome works too).
 2. Click **Install** in GlobalS's top bar. In Edge you can also use **⋯ → Apps → Install GlobalS**.
@@ -83,27 +98,25 @@ Some other limits:
 Compared with Heavens-Above or N2YO, pass times should agree to within about a minute. They use the
 same kind of data, so differences come down to data age and the minimum elevation you choose.
 
-## Publishing the site (one-time setup)
+## How it's published
 
-GlobalS is a static website on GitHub Pages. A GitHub Action rebuilds it on every push to `main` and
-every 6 hours with fresh data. There is nothing to install and no build step.
+The **Publish GlobalS** workflow runs on every push to `main`, every 6 hours, and on demand
+(**Actions → Publish GlobalS → Run workflow**). It does three things:
 
-1. In the repository, open **Settings → Pages → Build and deployment**, and set **Source** to
-   **GitHub Actions**.
-2. Merge into `main`. The **Deploy GlobalS** workflow tests everything, downloads the orbital data
-   and publishes the site. This takes a couple of minutes.
-3. To publish again at any time, use **Actions → Deploy GlobalS → Run workflow**.
-
-How the data is fetched:
-
-- The workflow downloads each CelesTrak group at most once per 2-hour update cycle, as CelesTrak
-  asks.
-- If CelesTrak is unreachable, it keeps the data already on the site.
-- It never publishes a catalogue with fewer than 1,000 objects.
+1. **Data.** It downloads the orbital data from CelesTrak into the `data` branch. The app reads it
+   from there through raw.githubusercontent.com, or jsDelivr as a fallback.
+   - Each CelesTrak group is downloaded at most once per 2-hour update cycle, as CelesTrak asks.
+   - If CelesTrak is unreachable, the previous data stays.
+   - A catalogue with fewer than 1,000 objects is never published.
+2. **Download.** It builds `GlobalS.html` and attaches it to the latest release. This happens on
+   pushes and manual runs.
+3. **Website (only if switched on).** With **Settings → Pages → Build and deployment → Source:
+   GitHub Actions**, it also publishes the web version. With Pages off, this step is simply
+   skipped.
 
 GitHub pauses scheduled workflows after 60 days without repository activity. If the data badge in
 the app turns red (data more than two days old), open the **Actions** tab and re-enable
-**Deploy GlobalS**.
+**Publish GlobalS**.
 
 ## Running it locally
 
@@ -113,9 +126,10 @@ You need [Node.js](https://nodejs.org) 22 or newer; there are no npm packages to
 node tools/serve.mjs                 # then open http://localhost:8080/
 node --test "tests/**/*.test.mjs"    # the test suite
 node tools/check-imports.mjs         # checks every import, worker and asset path
+node tools/build-single.mjs          # builds the download, dist/GlobalS.html
 ```
 
-Run locally, the app uses the demo data, because the live data is only published to the website.
+Run locally, the app reads the GlobalS data feed. If it can't reach the feed, it uses the demo data.
 
 To try the installed, offline version locally:
 
@@ -168,10 +182,16 @@ Useful URL options:
 - **Where the code lives.**
   - `js/core/` holds all the astronomy. It is pure JavaScript, so the tests run it in Node.
   - Rendering lives in `js/render/` and the interface in `js/ui/`.
-- **Data relay.** CelesTrak doesn't allow browsers to fetch its data directly. The deploy workflow
-  therefore downloads it (`tools/fetch-celestrak.mjs`) and publishes it with the site.
-- **Offline.** A service worker (`sw.js`) caches the app per build. It keeps the last good orbital
-  data for offline starts.
+- **Data relay.** CelesTrak doesn't allow browsers to fetch its data directly. The publish workflow
+  therefore downloads it (`tools/fetch-celestrak.mjs`) into the `data` branch.
+- **One file.** `tools/build-single.mjs` embeds every module, the map, the stars and the NASA
+  imagery in one HTML page.
+  - It rewrites only import paths. A small loader turns each module into a `blob:` URL at start-up.
+  - Each worker builds its own modules the same way, because a double-clicked `file://` page may
+    not start module workers from `blob:` URLs.
+  - The last data is kept in IndexedDB for offline starts.
+- **Offline (web version).** A service worker (`sw.js`) caches the app per build. It keeps the
+  last good orbital data for offline starts.
 
 ## Credits
 
