@@ -6,8 +6,16 @@ export const APP_VERSION = '2.0.0';
 /** Source code, issues and the full credits (ATTRIBUTION.md). */
 export const REPO_URL = 'https://github.com/GrantWally120/GlobalS';
 
-/** Public data feed published by .github/workflows/pages.yml (used when running from elsewhere). */
-export const FEED_URL = 'https://grantwally120.github.io/GlobalS/data/';
+/**
+ * The GlobalS data feed, refreshed every 6 hours by .github/workflows/publish.yml. Used by the
+ * downloadable single-file version and local copies; tried in order. (All three allow requests
+ * from any page — CelesTrak itself doesn't, so browsers can't read it directly.)
+ */
+export const FEED_URLS = [
+  'https://raw.githubusercontent.com/GrantWally120/GlobalS/data/',
+  'https://cdn.jsdelivr.net/gh/GrantWally120/GlobalS@data/',
+  'https://grantwally120.github.io/GlobalS/data/',
+];
 
 /** Default observer: Cebu City, Philippines (Wikipedia: 10°17′35″N 123°54′07″E, 34 m). */
 export const DEFAULT_OBSERVER = {

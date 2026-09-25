@@ -13,6 +13,7 @@ import { gmstFromMs, recFromAny } from './core/sat.js';
 import { sunDirEci } from './core/sun.js';
 import { parseTimeParam } from './core/time.js';
 import { FROM_CACHE_HEADER, dataAgeHours, resolveData } from './data/loader.js';
+import { loadSnapshot, saveSnapshot } from './data/offline-store.js';
 import { createAtmosphere } from './render/atmosphere.js';
 import { CameraModes } from './render/camera-modes.js';
 import { createEarth, fallbackDayTexture, loadTexture } from './render/earth.js';
@@ -38,12 +39,19 @@ import { WorkerClient } from './workers/rpc.js';
 
 const params = new URLSearchParams(location.search);
 const isLocal = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
+const single = !!globalThis.GLOBALS_SINGLE; // the downloadable one-file version (tools/build-single.mjs)
 const boot = createBoot();
 
 async function json(url) {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`HTTP ${res.status} loading ${url}`);
   return res.json();
+}
+
+async function text(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status} loading ${url}`);
+  return res.text();
 }
 
 function hasWebGL2() {
@@ -223,10 +231,23 @@ async function start() {
 
   const selectedId = () => (app.selected >= 0 ? app.meta.ids[app.selected] : null);
 
-  /** Load a manifest's catalogue into the worker; same-site data is then kept for offline starts. */
+  /**
+   * Load a manifest's catalogue into the worker, and keep it for starting offline: the web version's
+   * service worker keeps same-site data; the single-file version keeps its own copy in IndexedDB.
+   */
   async function loadCatalog(data, synthetic = 0) {
+    if (data.snapshot) {
+      const { catalogText, groupsText } = data.snapshot;
+      return propagator.call('load', { catalogText, groupsText, synthetic });
+    }
     const catalogUrl = new URL(data.manifest.files.catalog, data.base).href;
     const groupsUrl = new URL(data.manifest.files.groups, data.base).href;
+    if (single) {
+      const [catalogText, groupsText] = await Promise.all([text(catalogUrl), text(groupsUrl)]);
+      const meta = await propagator.call('load', { catalogText, groupsText, synthetic });
+      saveSnapshot({ manifest: data.manifest, catalogText, groupsText }).catch(() => {});
+      return meta;
+    }
     const meta = await propagator.call('load', { catalogUrl, groupsUrl, synthetic });
     if (data.source === 'site') keepDataOffline(new URL('manifest.json', data.base).href, data.manifest, [catalogUrl, groupsUrl]).catch(() => {});
     return meta;
@@ -237,17 +258,29 @@ async function start() {
   let checkingData = false;
   let offeredVersion = null;
   async function checkForNewData() {
-    if (checkingData || !app.data || !['site', 'feed'].includes(app.source)) return;
+    if (checkingData || !app.data || !['site', 'feed', 'offline'].includes(app.source)) return;
     checkingData = true;
     lastDataCheck = Date.now();
     try {
-      const res = await fetch(new URL('manifest.json', app.data.base), { cache: 'no-cache' });
-      if (!res.ok || res.headers.get(FROM_CACHE_HEADER)) return; // offline: the cached copy is what we have
-      const manifest = await res.json();
+      let next;
+      if (app.source === 'offline') {
+        next = await resolveData(params, { isLocal }); // back online?
+        if (!next) return;
+      } else {
+        const res = await fetch(new URL('manifest.json', app.data.base), { cache: 'no-cache' });
+        if (!res.ok || res.headers.get(FROM_CACHE_HEADER)) return; // offline: the cached copy is what we have
+        next = { ...app.data, manifest: await res.json() };
+      }
+      const { manifest } = next;
       const current = app.data.manifest;
+      if (manifest?.files?.catalog && manifest.version === current.version && app.source === 'offline') {
+        app.data = next; // online again, and the offline copy is already the latest
+        app.source = next.source;
+        refreshDataView();
+        return;
+      }
       if (!manifest?.files?.catalog || manifest.version === current.version) return;
       if (!(Date.parse(manifest.generatedAt) > Date.parse(current.generatedAt))) return;
-      const next = { ...app.data, manifest };
       if (app.imported) {
         if (offeredVersion === manifest.version) return;
         offeredVersion = manifest.version;
@@ -281,7 +314,10 @@ async function start() {
   }
 
   function refreshDataView() {
-    dataView.setData({ data: app.data, meta: app.meta, source: app.source, clockOffsetMs: clock.offsetMs, now: clock.realNow(), build: app.buildInfo });
+    dataView.setData({
+      data: app.data, meta: app.meta, source: app.source, now: clock.realNow(), build: app.buildInfo,
+      clockOffsetMs: clock.offsetMs, clockChecked: !!app.data?.clockChecked,
+    });
     const badge = $('#dataBadge');
     if (app.source === 'demo') {
       badge.className = 'badge optional demo';
@@ -471,7 +507,14 @@ async function start() {
 
   // ---------- orbital data ----------
   boot.progress(35, 'ORBITAL DATA');
-  const data = await resolveData(params, { isLocal });
+  let data = await resolveData(params, { isLocal });
+  if (!data && single) {
+    const snapshot = await loadSnapshot();
+    if (snapshot?.manifest?.files) {
+      data = { source: 'offline', base: null, manifest: snapshot.manifest, clockOffsetMs: 0, clockChecked: false, snapshot };
+      boot.log('warn', 'No internet — starting with the satellite data downloaded last time');
+    }
+  }
   if (data) {
     app.data = data;
     app.source = data.source;

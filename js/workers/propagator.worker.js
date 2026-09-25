@@ -125,7 +125,11 @@ const SYNTHETIC_GROUPS = [[/^NAVSTAR/, 'gps-ops'], [/^GALILEO/, 'galileo'], [/^G
 
 serve({
   async load(m) {
-    const [catalog, groups] = await Promise.all([fetchJson(m.catalogUrl), m.groupsUrl ? fetchJson(m.groupsUrl) : {}]);
+    // Either URLs to fetch, or the JSON text itself (the single-file version fetches on the page so
+    // it can keep an offline copy).
+    const [catalog, groups] = m.catalogText !== undefined
+      ? [JSON.parse(m.catalogText), m.groupsText ? JSON.parse(m.groupsText) : {}]
+      : await Promise.all([fetchJson(m.catalogUrl), m.groupsUrl ? fetchJson(m.groupsUrl) : {}]);
     memberMap = membership(groups);
     let list = catalog;
     if (m.synthetic > 0) {

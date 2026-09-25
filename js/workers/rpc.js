@@ -2,7 +2,9 @@
 
 export class WorkerClient {
   constructor(url) {
-    this.worker = new Worker(url, { type: 'module' });
+    // The single-file build (tools/build-single.mjs) hands us a classic start-up script instead:
+    // file:// pages may not start module workers from blob: URLs.
+    this.worker = new Worker(url, { type: globalThis.GLOBALS_SINGLE ? 'classic' : 'module' });
     this.seq = 0;
     this.pending = new Map();
     this.handlers = new Map();

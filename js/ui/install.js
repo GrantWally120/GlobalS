@@ -1,10 +1,12 @@
 // Installable app: the Install button, the service worker, the update prompt and offline data.
 
+import { clearSnapshot } from '../data/offline-store.js';
 import { $ } from './dom.js';
 import { toast } from './toasts.js';
 
 let swEnabled = false;
 let development = false;
+const single = !!globalThis.GLOBALS_SINGLE; // the downloadable file: no service worker on file://
 
 export function initInstall({ isLocal, params }) {
   let deferred = null;
@@ -28,7 +30,7 @@ export function initInstall({ isLocal, params }) {
 
   // Local development serves unstamped files; ?sw=1 tests the real thing against a staged site.
   development = isLocal && !params.has('sw');
-  if (!('serviceWorker' in navigator) || development) return;
+  if (single || !('serviceWorker' in navigator) || development) return;
   swEnabled = true;
   // The first worker to take control of this page is the one just installed on a first visit —
   // nothing to reload for. Any later change of control is an update, and the page must reload so
@@ -72,9 +74,10 @@ export async function keepDataOffline(manifestUrl, manifest, files) {
 /**
  * The running build (version.json is written at deploy; a service worker serves its own copy) and
  * whether GlobalS can start offline: 'ready' | 'pending' (first visit, still caching) |
- * 'unsupported' | 'off' (development).
+ * 'unsupported' | 'off' (development) | 'snapshot' (the single file keeps its last download).
  */
 export async function buildInfo() {
+  if (single) return { version: globalThis.GLOBALS_SINGLE.build, offline: 'snapshot' };
   if (development) return { version: null, offline: 'off' };
   let version = null;
   try {
@@ -89,6 +92,7 @@ export async function buildInfo() {
 
 /** Last resort for a stuck installation: forget the service worker and every cached file. */
 export async function resetAppCache() {
+  await clearSnapshot();
   if ('serviceWorker' in navigator) {
     // Other sites can share this origin (every project page on a github.io account does).
     const scope = new URL('./', location.href).href;

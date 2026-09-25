@@ -7,7 +7,8 @@ import { toast } from './toasts.js';
 
 const SOURCE_LABEL = {
   site: 'CelesTrak, relayed by this site',
-  feed: 'CelesTrak, via the public GlobalS feed',
+  feed: 'CelesTrak, via the GlobalS data feed on GitHub',
+  offline: 'Offline copy of the last download',
   demo: 'DEMO data (reference orbits + synthetic shells)',
   import: 'Imported file',
   none: 'None',
@@ -18,6 +19,7 @@ const OFFLINE_LABEL = {
   pending: 'Setting up in the background…',
   unsupported: 'Not available in this browser',
   off: 'Off in development',
+  snapshot: 'Keeps the last data it downloaded',
 };
 
 export function initDataView(app) {
@@ -95,7 +97,7 @@ export function initDataView(app) {
   return {
     importFile,
     setData(info) {
-      const { data, meta, source, clockOffsetMs, now, build } = info;
+      const { data, meta, source, clockOffsetMs, clockChecked, now, build } = info;
       const m = data?.manifest;
       const rows = [['Source', SOURCE_LABEL[source] ?? source]];
       if (m) {
@@ -105,17 +107,22 @@ export function initDataView(app) {
         rows.push(['Version', m.version]);
       }
       if (meta) rows.push(['Objects', `${fmtInt(meta.count)}${meta.failed ? ` (${meta.failed} unusable)` : ''}`]);
-      rows.push(['Your clock', clockOffsetMs ? `${(clockOffsetMs / 1000).toFixed(1)} s ${clockOffsetMs > 0 ? 'slow' : 'fast'} — corrected` : 'OK (within 2 s)', clockOffsetMs ? 'warn' : 'good']);
+      if (clockOffsetMs) rows.push(['Your clock', `${(clockOffsetMs / 1000).toFixed(1)} s ${clockOffsetMs > 0 ? 'slow' : 'fast'} — corrected`, 'warn']);
+      else if (clockChecked) rows.push(['Your clock', 'OK (within 2 s)', 'good']);
+      else rows.push(['Your clock', 'Not checked (keep Windows time sync on)']);
       fillKv($('#dataInfo'), rows);
       fillKv($('#appInfo'), [
         ['GlobalS', build?.version ? `v${APP_VERSION} · build ${build.version.slice(0, 8)}` : `v${APP_VERSION}`],
         ['Offline', OFFLINE_LABEL[build?.offline] ?? '—', build?.offline === 'ready' ? 'good' : ''],
       ]);
       const notes = [];
+      if (source === 'offline' && m) {
+        notes.push(el('div', { class: 'note' }, `No internet connection, so GlobalS is using the satellite data it downloaded ${fmtAge((now - Date.parse(m.generatedAt)) / 3600e3)}. Positions drift by a few kilometres for each day of age; it switches to fresh data by itself once you're back online.`));
+      }
       if (source === 'demo') notes.push(el('div', { class: 'note' }, 'DEMO DATA: live orbital data could not be loaded, so GlobalS is showing reference orbits and synthetic constellations. Positions are not real.'));
       if (!m && source !== 'import') notes.push(el('div', { class: 'note bad' }, 'No orbital data could be loaded. Check your internet connection, or import a TLE / OMM file below (you can download one from celestrak.org in your browser).'));
       if (m && (now - Date.parse(m.generatedAt)) / 3600e3 > DATA_AGE.redHours) {
-        notes.push(el('div', { class: 'note' }, 'This data is more than two days old. The site refreshes it automatically every six hours; GitHub pauses scheduled updates after 60 days without repository activity, so the owner may need to re-enable the “Deploy GlobalS” workflow.'));
+        notes.push(el('div', { class: 'note' }, 'This data is more than two days old. The site refreshes it automatically every six hours; GitHub pauses scheduled updates after 60 days without repository activity, so the owner may need to re-enable the “Publish GlobalS” workflow.'));
       }
       if (m?.groups && source !== 'demo') {
         const groups = Object.entries(m.groups);
