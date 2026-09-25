@@ -258,7 +258,20 @@ async function start() {
   let checkingData = false;
   let offeredVersion = null;
   async function checkForNewData() {
-    if (checkingData || !app.data || !['site', 'feed', 'offline'].includes(app.source)) return;
+    if (checkingData) return;
+    if (!app.data) {
+      // Started without data (no internet, or the feed isn't published yet): keep trying.
+      if (app.imported) return;
+      checkingData = true;
+      try {
+        const found = await resolveData(params, { isLocal });
+        if (found) await swapData(found);
+      } finally {
+        checkingData = false;
+      }
+      return;
+    }
+    if (!['site', 'feed', 'offline'].includes(app.source)) return;
     checkingData = true;
     lastDataCheck = Date.now();
     try {
@@ -305,12 +318,13 @@ async function start() {
       toast(`Newer orbital data couldn't be loaded (${err.message}); keeping the current data.`, { kind: 'warn' });
       return;
     }
+    const first = !app.data;
     app.data = next;
     app.source = next.source;
     app.imported = false;
     applyCatalog(meta, { keepId: selectedId() });
     refreshDataView();
-    toast(`Orbital data updated: ${fmtInt(meta.count)} objects, published ${fmtAge(dataAgeHours(next.manifest, clock.realNow()))}.`);
+    toast(`${first ? 'Satellite data loaded' : 'Orbital data updated'}: ${fmtInt(meta.count)} objects, published ${fmtAge(dataAgeHours(next.manifest, clock.realNow()))}.`);
   }
 
   function refreshDataView() {
@@ -658,6 +672,7 @@ async function start() {
   setInterval(refreshOverhead, 2000);
   setInterval(refreshDataView, 60_000);
   setInterval(checkForNewData, 30 * 60e3);
+  setInterval(() => { if (!app.data) checkForNewData(); }, 2 * 60e3); // no data yet: retry more often
   window.addEventListener('online', () => checkForNewData());
   // After sleep or a long background stint, a live view snaps back to real time.
   let wasLive = clock.isLive(5000);

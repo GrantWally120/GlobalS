@@ -2,8 +2,10 @@
 #   data     CelesTrak → the `data` branch, which the app reads through raw.githubusercontent.com
 #            (or jsDelivr). Every run; each CelesTrak group is downloaded at most once per 2-hour
 #            update cycle, as CelesTrak asks, and falls back to the previous data if unreachable.
-#   release  dist/GlobalS.html, the download-and-double-click version → the latest GitHub release.
-#            On pushes and manual runs (the file doesn't change on the schedule).
+#   release  dist/GlobalS.html, the download-and-double-click version → the latest GitHub release,
+#            and the app branch (which the small GlobalS starter file, e.g. in Google Drive, loads).
+#            On pushes and manual runs (the file doesn't change on the schedule), even if CelesTrak
+#            was unreachable this time.
 #   pages    the web version, only if Settings → Pages → Source is "GitHub Actions"; skipped
 #            (not failed) otherwise.
 #
@@ -92,22 +94,24 @@ jobs:
 
   release:
     needs: data
-    if: github.event_name != 'schedule'
+    if: ${{ !cancelled() && github.event_name != 'schedule' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
-      contents: write # creates the release
+      contents: write # creates the release, pushes the app branch
     steps:
       - uses: actions/checkout@v6
-        with:
-          persist-credentials: false
       - uses: actions/setup-node@v6
         with:
           node-version: '22'
       - name: Build GlobalS.html
         run: node tools/build-single.mjs --out dist/GlobalS.html
       - name: Open it from file:// in Chrome, with live data
+        if: needs.data.result == 'success'
         run: node tools/smoke-single.mjs dist/GlobalS.html --require-data
+      - name: Open it from file:// in Chrome (the data update failed this time)
+        if: needs.data.result != 'success'
+        run: node tools/smoke-single.mjs dist/GlobalS.html
       - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -120,6 +124,20 @@ jobs:
           fi
           gh release upload "$tag" dist/GlobalS.html -R "$GITHUB_REPOSITORY" --clobber
           echo "Download: https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/GlobalS.html" >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish to the app branch (loaded by the GlobalS starter file)
+        run: |
+          build=$(grep -o 'GlobalS single-file build [0-9a-f]*' dist/GlobalS.html | awk '{print $4}')
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -q --orphan app-publish
+          git rm -rq --cached .
+          cp dist/GlobalS.html GlobalS.html
+          cp .github/app-branch-README.md README.md
+          git add GlobalS.html README.md
+          git commit -q -m "GlobalS single-file build $build (main ${GITHUB_SHA::7})"
+          git push --force origin HEAD:refs/heads/app
+          curl -fsS -m 20 -o /dev/null "https://purge.jsdelivr.net/gh/${GITHUB_REPOSITORY}@app/GlobalS.html" \
+            || echo "::notice::jsDelivr purge didn't go through; its copy refreshes within 12 hours anyway."
 
   pages-check:
     runs-on: ubuntu-24.04

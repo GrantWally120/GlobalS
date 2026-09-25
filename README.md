@@ -18,6 +18,11 @@ one file (about 8 MB), with nothing to install.
 The satellite data is refreshed on GitHub every 6 hours, and an open GlobalS picks it up by itself.
 You only need a new copy of the file when there's a new version of GlobalS.
 
+There is also a 4 KB **starter file**,
+[`launcher/GlobalS.html`](launcher/GlobalS.html), which is handy to keep in Google Drive. Each time
+you open it, it loads the latest GlobalS from GitHub, so it updates itself. It keeps a copy in your
+browser for starting offline.
+
 ![Holographic globe with a selected satellite, its orbit, ground track and coverage circle, and its next passes over Cebu City](docs/screenshot-holographic.jpg)
 
 ![Photoreal globe at night over Asia, with the sky radar and the list of satellites above Cebu City](docs/screenshot-photoreal.jpg)

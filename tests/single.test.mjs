@@ -1,5 +1,6 @@
 // The downloadable single-file build (tools/build-single.mjs) and where the app looks for data.
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { FEED_URLS } from '../js/config.js';
 import { dataCandidates, resolveData } from '../js/data/loader.js';
@@ -50,6 +51,15 @@ test('single file: modules load dependencies first, and every import points insi
   const main = bundle.modules['js/main.js'];
   assert.ok(main.includes("new URL('\uFDD0W:js/workers/propagator.worker.js')"));
   assert.ok(main.includes("new URL('\uFDD0W:js/workers/passes.worker.js')"));
+});
+
+test('the small starter file (e.g. in Google Drive) loads this build from the app branch', () => {
+  const starter = readFileSync(new URL('../launcher/GlobalS.html', import.meta.url), 'utf8');
+  const marker = new RegExp(/GlobalS single-file build (\w+)/.source);
+  assert.equal(marker.exec(built.html)?.[1], built.build, 'the build carries the marker the starter checks for');
+  assert.ok(starter.includes('/GlobalS single-file build (\\w+)/'), 'the starter checks for that marker');
+  assert.ok(starter.includes("'https://raw.githubusercontent.com/GrantWally120/GlobalS/app/GlobalS.html'"));
+  assert.ok(Buffer.byteLength(starter) < 8000, 'small enough to hand around');
 });
 
 test('single file: the map, stars and NASA imagery are embedded', () => {

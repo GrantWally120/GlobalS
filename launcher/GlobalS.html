@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GlobalS</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #02040a; color: #cfe9f2; font: 15px "Segoe UI Variable", "Segoe UI", system-ui, sans-serif; }
+  .box { position: fixed; inset: 0; display: grid; place-content: center; gap: 16px; padding: 16px; text-align: center; }
+  .brand { color: #fff; font-size: 28px; letter-spacing: 9px; }
+  .brand b { color: #4ff0ff; font-weight: 400; }
+  .bar { width: min(360px, 80vw); height: 3px; margin: 0 auto; background: rgba(79, 240, 255, 0.15); }
+  .bar i { display: block; width: 0; height: 100%; background: #4ff0ff; transition: width 0.3s; }
+  #msg { max-width: 460px; color: #7f9bb3; font-size: 13px; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="box">
+  <div class="brand">GLOBAL<b>S</b></div>
+  <div class="bar"><i id="bar"></i></div>
+  <div id="msg">Loading GlobalS…</div>
+</div>
+<script>
+// GlobalS starter. This small file loads the full GlobalS (one 8 MB page that GitHub Actions
+// rebuilds on every change) from GitHub, keeps a copy in this browser so it also starts offline,
+// and picks up new versions by itself. Source: https://github.com/GrantWally120/GlobalS
+(async () => {
+  'use strict';
+  const SOURCES = [
+    'https://raw.githubusercontent.com/GrantWally120/GlobalS/app/GlobalS.html',
+    'https://cdn.jsdelivr.net/gh/GrantWally120/GlobalS@app/GlobalS.html',
+  ];
+  const msg = document.getElementById('msg');
+  const bar = document.getElementById('bar');
+  const buildOf = (html) => /GlobalS single-file build (\w+)/.exec(html)?.[1] ?? null;
+
+  const openDb = () => new Promise((resolve, reject) => {
+    const rq = indexedDB.open('globals-starter', 1);
+    rq.onupgradeneeded = () => rq.result.createObjectStore('page');
+    rq.onsuccess = () => resolve(rq.result);
+    rq.onerror = () => reject(rq.error);
+  });
+  const store = async (mode, op) => {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('page', mode);
+      const rq = op(tx.objectStore('page'));
+      tx.oncomplete = () => { db.close(); resolve(rq.result); };
+      tx.onerror = tx.onabort = () => { db.close(); reject(tx.error); };
+    });
+  };
+
+  async function download(url) {
+    const res = await fetch(url, { signal: AbortSignal.timeout(90000) });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const reader = res.body.getReader();
+    const chunks = [];
+    let bytes = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      bytes += value.length;
+      bar.style.width = `${Math.min(95, (bytes / 8.5e6) * 100)}%`;
+    }
+    const html = new TextDecoder().decode(await new Blob(chunks).arrayBuffer());
+    if (!buildOf(html)) throw new Error('not a GlobalS page');
+    return html;
+  }
+
+  let html = null;
+  for (const url of SOURCES) {
+    try {
+      html = await download(url);
+      break;
+    } catch {
+      // try the next source
+    }
+  }
+  const saved = await store('readonly', (s) => s.get('latest')).catch(() => null);
+  if (html) {
+    if (saved?.build !== buildOf(html)) await store('readwrite', (s) => s.put({ build: buildOf(html), html }, 'latest')).catch(() => {});
+  } else if (saved?.html) {
+    html = saved.html;
+    msg.textContent = 'No internet, so GlobalS is starting from the copy saved last time…';
+  } else {
+    bar.style.width = '0';
+    msg.textContent = 'GlobalS needs internet the first time it starts. Check your connection, then open this file again.';
+    return;
+  }
+  bar.style.width = '100%';
+  document.open();
+  document.write(html);
+  document.close();
+})();
+</script>
+</body>
+</html>

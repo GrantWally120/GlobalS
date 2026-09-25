@@ -98,6 +98,18 @@ test('HTTP 403 trips the circuit breaker; every group falls back to the previous
   assert.equal(m.counts.objects, REF.length, 'no data lost');
 });
 
+test('no answer from CelesTrak: one retry, then the rest of the run is skipped, keeping previous data', async () => {
+  const { previous } = await freshDeployment();
+  const { fetchImpl, calls } = mockNet({ previous, gp: () => { throw new DOMException('timed out', 'TimeoutError'); } });
+  const m = await run({ out: out(), previous: PREV, fetchImpl, sleep, now: () => NOW + 3 * 3600e3, log: quiet });
+  assert.equal(gpCalls(calls).length, 2, 'the first group was tried twice, the others not at all');
+  assert.equal(m.groups.active.status, 'fallback');
+  assert.equal(m.groups.active.reason, 'failed');
+  assert.equal(m.groups.stations.reason, 'unreachable');
+  assert.equal(m.groups.stations.attemptedAt, previous['manifest.json'].groups.stations.attemptedAt, 'untouched groups keep their last attempt time');
+  assert.equal(m.counts.objects, REF.length, 'no data lost');
+});
+
 test('a 5xx is retried once after ≥30 s; a 4xx is never retried', async () => {
   sleeps.length = 0;
   const { fetchImpl, calls } = mockNet({

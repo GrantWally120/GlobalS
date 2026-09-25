@@ -163,7 +163,8 @@ export async function run({
   const prev = fromDir ? null : await loadPrevious(fetchImpl, previous);
   const report = [];
   const results = {};
-  let blocked = false;
+  let blocked = false; // CelesTrak said 403: stop asking for this run
+  let unreachable = false; // a group failed twice (no answer, or server errors): same
   let contacted = 0;
   const dropped = { invalid: 0, propagation: 0 };
 
@@ -179,13 +180,15 @@ export async function run({
       // Contacted CelesTrak for this group less than one update cycle ago — whatever the outcome
       // was, asking again now would break the one-download-per-cycle rule.
       res = { status: 'reused', records: prevRecords ?? [], fetchedAt: prevInfo.fetchedAt, attemptedAt: prevInfo.attemptedAt };
-    } else if (blocked) {
-      res = { status: 'blocked', attemptedAt: prevInfo?.attemptedAt ?? null };
+    } else if (blocked || unreachable) {
+      // Not contacted this run, so the previous attempt time stands.
+      res = { status: blocked ? 'blocked' : 'unreachable', attemptedAt: prevInfo?.attemptedAt ?? null };
     } else {
       if (contacted++ > 0) await sleep(SPACING_MS);
       res = await fetchGroup(fetchImpl, g.name, { sleep, timeoutMs: g.timeoutMs ?? 30_000 });
       res.attemptedAt = new Date(now()).toISOString();
       if (res.status === 'blocked') blocked = true;
+      if (res.status === 'failed') unreachable = true;
     }
 
     if (res.status === 'fresh') {
@@ -259,7 +262,8 @@ export async function run({
     '### Orbital data (CelesTrak)',
     '',
     `${union.length.toLocaleString('en-US')} objects · version \`${version}\` · median epoch ${manifest.epoch.median ?? '—'}` +
-      `${blocked ? ' · **CelesTrak returned 403 — stopped contacting it for this run**' : ''}`,
+      `${blocked ? ' · **CelesTrak returned 403 — stopped contacting it for this run**' : ''}` +
+      `${unreachable ? ' · **CelesTrak did not answer — stopped contacting it for this run**' : ''}`,
     '',
     '| Group | Status | Objects | HTTP | Note |',
     '| --- | --- | --- | --- | --- |',
