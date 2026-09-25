@@ -3,6 +3,9 @@
 export const APP_NAME = 'GlobalS';
 export const APP_VERSION = '2.0.0';
 
+/** Source code, issues and the full credits (ATTRIBUTION.md). */
+export const REPO_URL = 'https://github.com/GrantWally120/GlobalS';
+
 /** Public data feed published by .github/workflows/pages.yml (used when running from elsewhere). */
 export const FEED_URL = 'https://grantwally120.github.io/GlobalS/data/';
 

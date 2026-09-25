@@ -1,6 +1,6 @@
 // Data view: where the orbits come from and how fresh they are, file import, accuracy and credits.
 
-import { APP_VERSION, DATA_AGE } from '../config.js';
+import { APP_VERSION, DATA_AGE, REPO_URL } from '../config.js';
 import { fmtAge, fmtInt } from '../core/format.js';
 import { $, el, fillKv } from './dom.js';
 import { toast } from './toasts.js';
@@ -87,6 +87,8 @@ export function initDataView(app) {
       el('li', {}, 'Stars: XHIP (Hipparcos) and IAU constellation lines via d3-celestial (BSD-3).'),
       el('li', {}, 'Photoreal globe: NASA Blue Marble Next Generation and Black Marble 2016, NASA Earth Observatory (public domain).'),
       el('li', {}, 'Verification: Skyfield and python-sgp4 (Brandon Rhodes, MIT).')),
+    el('p', {}, el('a', { href: `${REPO_URL}/blob/main/ATTRIBUTION.md`, target: '_blank', rel: 'noopener' }, 'Full credits and licences'), ' · ',
+      el('a', { href: REPO_URL, target: '_blank', rel: 'noopener' }, 'Source code')),
     el('p', { class: 'dim' }, 'Your location and settings stay in this browser. GlobalS sends nothing about you anywhere.'),
   );
 

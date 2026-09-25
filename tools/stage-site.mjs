@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 /** Top-level files and folders that make up the app. */
-export const INCLUDE = ['index.html', 'manifest.webmanifest', 'sw.js', 'ATTRIBUTION.md', 'css', 'js', 'vendor', 'assets'];
+export const INCLUDE = ['index.html', 'manifest.webmanifest', 'sw.js', 'ATTRIBUTION.md', 'VENDOR.md', 'css', 'js', 'vendor', 'assets'];
 
 /** Inside those, never publish these. */
 export const EXCLUDE = [
