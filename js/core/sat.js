@@ -112,3 +112,12 @@ export const jdFromMs = (tMs) => tMs / MS_PER_DAY + JD_UNIX_EPOCH;
 
 /** Greenwich Mean Sidereal Time (IAU-82, the model SGP4's TEME frame is defined with), radians. */
 export const gmstFromMs = (tMs) => gstime(jdFromMs(tMs));
+
+/**
+ * Initialise from either record shape GlobalS stores: an OMM, or an imported TLE kept as
+ * { OBJECT_NAME, NORAD_CAT_ID, TLE_LINE1, TLE_LINE2 }.
+ */
+export function recFromAny(o) {
+  if (o?.TLE_LINE1) return recFromTle(o.OBJECT_NAME, o.TLE_LINE1, o.TLE_LINE2, Number(o.NORAD_CAT_ID));
+  return recFromOmm(o);
+}

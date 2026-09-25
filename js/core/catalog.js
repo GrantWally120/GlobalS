@@ -7,13 +7,19 @@
 export const CATEGORIES = [
   { key: 'stations', label: 'Space stations', groups: ['stations'] },
   { key: 'gnss', label: 'Navigation (GNSS)', groups: ['gps-ops', 'glo-ops', 'galileo', 'beidou'] },
-  { key: 'weather', label: 'Weather & Earth observation', groups: ['weather', 'resource'] },
+  {
+    key: 'weather',
+    label: 'Weather & Earth observation',
+    groups: ['weather', 'resource'],
+    // Commercial imaging/sensing fleets CelesTrak files under "active" only (verified against live data).
+    names: /^(FLOCK|SKYSAT|ICEYE|LEMUR|JILIN|GAOFEN|CAPELLA|UMBRA|NUSAT|SUPERVIEW|WORLDVIEW|PLEIADES|SENTINEL|LANDSAT)/i,
+  },
   { key: 'science', label: 'Science', groups: ['science'] },
   { key: 'amateur', label: 'Amateur radio', groups: ['amateur'] },
   { key: 'starlink', label: 'Starlink', names: /^STARLINK/i },
   { key: 'oneweb', label: 'OneWeb', names: /^ONEWEB/i },
   { key: 'kuiper', label: 'Amazon Kuiper', names: /^KUIPER/i },
-  { key: 'megacon', label: 'Other broadband', names: /^(QIANFAN|GUOWANG|HULIANWANG|SATNET)/i },
+  { key: 'megacon', label: 'Other comms constellations', names: /^(QIANFAN|GUOWANG|HULIANWANG|SATNET|IRIDIUM|GLOBALSTAR|ORBCOMM)/i },
   { key: 'geo', label: 'Geosynchronous', orbit: ['GEO', 'GSO'] },
   { key: 'other', label: 'Other' },
 ];

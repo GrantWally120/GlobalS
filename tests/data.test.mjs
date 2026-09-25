@@ -73,6 +73,9 @@ test('categories: groups first, then names, then orbit regime', () => {
   assert.equal(CATEGORIES[categorize('HIMAWARI-9', g('weather'), 'GEO')].key, 'weather');
   assert.equal(CATEGORIES[categorize('SES-9', g(), 'GEO')].key, 'geo');
   assert.equal(CATEGORIES[categorize('SOMESAT', g(), 'LEO')].key, 'other');
+  assert.equal(CATEGORIES[categorize('FLOCK 4Y-12', g(), 'LEO')].key, 'weather', 'Planet imaging fleet');
+  assert.equal(CATEGORIES[categorize('QIANFAN-17', g(), 'LEO')].key, 'megacon');
+  assert.equal(CATEGORIES[categorize('IRIDIUM 180', g(), 'LEO')].key, 'megacon');
   assert.equal(CATEGORY_INDEX.other, CATEGORIES.length - 1);
   assert.equal(facetBits(g('visual', 'last-30-days')), 0b11);
   const m = membership({ stations: [25544], visual: [25544, 20580] });
