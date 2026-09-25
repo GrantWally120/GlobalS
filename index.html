@@ -1,1119 +1,228 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=1280, initial-scale=1" />
-<title>GlobalS — Global Satellites</title>
-<style>
-  :root {
-    --bg-0: #02040a;
-    --bg-1: #050a18;
-    --cyan: #4ff0ff;
-    --cyan-dim: #1a8fa3;
-    --amber: #ffb547;
-    --magenta: #ff5fa8;
-    --green: #5cffb1;
-    --text: #d8eef7;
-    --text-dim: #6f8aa1;
-    --panel: rgba(8, 18, 32, 0.72);
-    --panel-line: rgba(79, 240, 255, 0.18);
-    --grid: rgba(79, 240, 255, 0.06);
-  }
-
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-
-  html, body {
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-    background: radial-gradient(ellipse at center, #061226 0%, #02040a 70%, #000 100%);
-    color: var(--text);
-    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
-    cursor: default;
-    user-select: none;
-  }
-
-  body::before {
-    content: '';
-    position: fixed; inset: 0;
-    background-image:
-      linear-gradient(var(--grid) 1px, transparent 1px),
-      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
-    background-size: 60px 60px;
-    pointer-events: none;
-    z-index: 1;
-    mask-image: radial-gradient(ellipse at center, #000 30%, transparent 80%);
-  }
-
-  /* ============ LOADING SCREEN ============ */
-  #loader {
-    position: fixed; inset: 0;
-    z-index: 100;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    background: radial-gradient(ellipse at center, #061226 0%, #02040a 70%, #000 100%);
-    transition: opacity 1.2s ease, visibility 1.2s ease;
-  }
-  #loader.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
-
-  .loader-globe {
-    width: 320px;
-    height: 320px;
-    position: relative;
-    margin-bottom: 48px;
-    filter: drop-shadow(0 0 30px rgba(79, 240, 255, 0.35));
-  }
-  .loader-globe svg {
-    width: 100%;
-    height: 100%;
-    animation: spin 14s linear infinite;
-  }
-  .loader-globe::before,
-  .loader-globe::after {
-    content: '';
-    position: absolute;
-    inset: -10px;
-    border-radius: 50%;
-    border: 1px solid rgba(79, 240, 255, 0.15);
-    animation: pulseRing 3s ease-in-out infinite;
-  }
-  .loader-globe::after {
-    inset: -30px;
-    animation-delay: 1.5s;
-  }
-  .orbit-ring {
-    position: absolute;
-    border: 1px dashed rgba(79, 240, 255, 0.35);
-    border-radius: 50%;
-    top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    pointer-events: none;
-  }
-  .orbit-ring.r1 { width: 360px; height: 360px; animation: spin 9s linear infinite reverse; }
-  .orbit-ring.r2 { width: 420px; height: 420px; transform: translate(-50%, -50%) rotateX(70deg); border-color: rgba(255, 95, 168, 0.3); animation: spin 12s linear infinite; }
-  .sat-dot {
-    position: absolute;
-    width: 8px; height: 8px;
-    background: var(--cyan);
-    border-radius: 50%;
-    box-shadow: 0 0 10px var(--cyan), 0 0 20px var(--cyan);
-    top: 50%; left: 50%;
-    margin: -4px 0 0 -4px;
-    transform-origin: 0 0;
-  }
-  .sat-orbit-a { animation: orbitA 4s linear infinite; }
-  .sat-orbit-b { animation: orbitB 6s linear infinite; background: var(--magenta); box-shadow: 0 0 10px var(--magenta), 0 0 20px var(--magenta); }
-  .sat-orbit-c { animation: orbitC 5s linear infinite; background: var(--amber); box-shadow: 0 0 10px var(--amber), 0 0 20px var(--amber); }
-
-  @keyframes orbitA {
-    from { transform: rotate(0deg) translateX(180px) rotate(0deg); }
-    to   { transform: rotate(360deg) translateX(180px) rotate(-360deg); }
-  }
-  @keyframes orbitB {
-    from { transform: rotate(0deg) translateX(210px) rotate(0deg); }
-    to   { transform: rotate(-360deg) translateX(210px) rotate(360deg); }
-  }
-  @keyframes orbitC {
-    from { transform: rotate(40deg) translateX(195px) rotate(0deg); }
-    to   { transform: rotate(400deg) translateX(195px) rotate(-360deg); }
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  @keyframes pulseRing {
-    0%, 100% { transform: scale(1); opacity: 0.5; }
-    50% { transform: scale(1.08); opacity: 0; }
-  }
-
-  .brand {
-    font-size: 64px;
-    font-weight: 200;
-    letter-spacing: 12px;
-    color: var(--text);
-    text-shadow: 0 0 30px rgba(79, 240, 255, 0.6);
-    margin-bottom: 8px;
-    display: flex;
-    align-items: center;
-  }
-  .brand .b-g { color: var(--cyan); font-weight: 500; }
-  .brand .b-s { color: var(--cyan); font-weight: 500; }
-  .brand .dots {
-    display: inline-block;
-    width: 80px;
-    text-align: left;
-    color: var(--cyan);
-    margin-left: 6px;
-    letter-spacing: 6px;
-  }
-  .tagline {
-    font-size: 13px;
-    letter-spacing: 8px;
-    color: var(--text-dim);
-    text-transform: uppercase;
-    margin-bottom: 36px;
-  }
-  .progress-shell {
-    width: 420px;
-    height: 4px;
-    background: rgba(79, 240, 255, 0.1);
-    border-radius: 2px;
-    overflow: hidden;
-    position: relative;
-  }
-  .progress-bar {
-    height: 100%;
-    width: 0%;
-    background: linear-gradient(90deg, var(--cyan-dim), var(--cyan));
-    box-shadow: 0 0 14px var(--cyan);
-    transition: width 0.25s ease;
-  }
-  .progress-meta {
-    width: 420px;
-    display: flex;
-    justify-content: space-between;
-    margin-top: 14px;
-    font-size: 11px;
-    color: var(--text-dim);
-    letter-spacing: 2px;
-  }
-  .progress-meta .pct { color: var(--cyan); }
-
-  .boot-log {
-    margin-top: 22px;
-    width: 420px;
-    height: 60px;
-    font-family: 'Consolas', 'Monaco', monospace;
-    font-size: 11px;
-    color: var(--text-dim);
-    overflow: hidden;
-    text-align: left;
-  }
-  .boot-log .ok { color: var(--green); }
-  .boot-log .warn { color: var(--amber); }
-
-  /* ============ MAIN APP ============ */
-  #app {
-    position: fixed; inset: 0;
-    opacity: 0;
-    transition: opacity 1.4s ease 0.3s;
-    z-index: 2;
-  }
-  #app.show { opacity: 1; }
-
-  #scene { position: absolute; inset: 0; }
-
-  /* Top bar */
-  .topbar {
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 56px;
-    display: flex;
-    align-items: center;
-    padding: 0 28px;
-    background: linear-gradient(180deg, rgba(2, 6, 14, 0.9), transparent);
-    z-index: 10;
-    border-bottom: 1px solid var(--panel-line);
-  }
-  .topbar .logo {
-    font-size: 20px;
-    font-weight: 300;
-    letter-spacing: 6px;
-    color: var(--text);
-  }
-  .topbar .logo b { color: var(--cyan); font-weight: 600; }
-  .topbar .nav {
-    display: flex;
-    gap: 32px;
-    margin-left: 60px;
-    font-size: 12px;
-    letter-spacing: 3px;
-    text-transform: uppercase;
-    color: var(--text-dim);
-  }
-  .topbar .nav span { cursor: pointer; padding: 4px 0; border-bottom: 1px solid transparent; transition: all 0.2s; }
-  .topbar .nav span:hover, .topbar .nav span.active { color: var(--cyan); border-color: var(--cyan); }
-  .topbar .right {
-    margin-left: auto;
-    display: flex;
-    gap: 24px;
-    align-items: center;
-    font-size: 12px;
-    color: var(--text-dim);
-    letter-spacing: 2px;
-  }
-  .topbar .right .live {
-    display: flex; align-items: center; gap: 8px;
-    color: var(--green);
-  }
-  .live-dot {
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    background: var(--green);
-    box-shadow: 0 0 8px var(--green);
-    animation: blink 1.4s ease-in-out infinite;
-  }
-  @keyframes blink { 50% { opacity: 0.35; } }
-
-  /* Side panels */
-  .panel {
-    position: absolute;
-    background: var(--panel);
-    border: 1px solid var(--panel-line);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.02);
-    z-index: 10;
-  }
-  .panel::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0;
-    width: 12px; height: 12px;
-    border-top: 1px solid var(--cyan);
-    border-left: 1px solid var(--cyan);
-  }
-  .panel::after {
-    content: '';
-    position: absolute;
-    bottom: 0; right: 0;
-    width: 12px; height: 12px;
-    border-bottom: 1px solid var(--cyan);
-    border-right: 1px solid var(--cyan);
-  }
-  .panel h3 {
-    font-size: 11px;
-    font-weight: 500;
-    letter-spacing: 3px;
-    text-transform: uppercase;
-    color: var(--cyan);
-    padding: 14px 18px 10px;
-    border-bottom: 1px solid var(--panel-line);
-  }
-
-  /* Left panel */
-  #leftPanel {
-    top: 80px; left: 24px;
-    width: 280px;
-    padding-bottom: 12px;
-  }
-  .stat {
-    padding: 12px 18px;
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    border-bottom: 1px solid rgba(79, 240, 255, 0.05);
-  }
-  .stat:last-child { border-bottom: none; }
-  .stat .lbl { font-size: 10px; letter-spacing: 2px; color: var(--text-dim); text-transform: uppercase; }
-  .stat .val { font-size: 18px; font-weight: 300; color: var(--text); font-variant-numeric: tabular-nums; }
-  .stat .val.cyan { color: var(--cyan); }
-  .stat .val.amber { color: var(--amber); }
-  .stat .val.green { color: var(--green); }
-
-  /* Right panel - tracking list */
-  #rightPanel {
-    top: 80px; right: 24px;
-    width: 320px;
-    max-height: calc(100vh - 240px);
-    display: flex;
-    flex-direction: column;
-  }
-  .sat-list {
-    overflow-y: auto;
-    flex: 1;
-  }
-  .sat-item {
-    padding: 12px 18px;
-    border-bottom: 1px solid rgba(79, 240, 255, 0.05);
-    cursor: pointer;
-    transition: background 0.15s;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-  .sat-item:hover { background: rgba(79, 240, 255, 0.05); }
-  .sat-item.active { background: rgba(79, 240, 255, 0.1); border-left: 2px solid var(--cyan); padding-left: 16px; }
-  .sat-swatch {
-    width: 10px; height: 10px;
-    border-radius: 50%;
-    flex-shrink: 0;
-    box-shadow: 0 0 8px currentColor;
-  }
-  .sat-meta { flex: 1; min-width: 0; }
-  .sat-name { font-size: 13px; color: var(--text); margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .sat-detail { font-size: 10px; color: var(--text-dim); letter-spacing: 1px; font-family: 'Consolas', monospace; }
-
-  /* Bottom panel - time/coords */
-  #bottomPanel {
-    bottom: 24px; left: 50%;
-    transform: translateX(-50%);
-    display: flex;
-    gap: 0;
-    padding: 0;
-  }
-  .clock-cell {
-    padding: 14px 28px;
-    border-right: 1px solid var(--panel-line);
-    text-align: center;
-  }
-  .clock-cell:last-child { border-right: none; }
-  .clock-cell .lbl { font-size: 9px; letter-spacing: 3px; color: var(--text-dim); text-transform: uppercase; margin-bottom: 4px; }
-  .clock-cell .val { font-size: 18px; font-weight: 300; color: var(--text); font-variant-numeric: tabular-nums; font-family: 'Consolas', monospace; }
-  .clock-cell .val.cyan { color: var(--cyan); }
-
-  /* Detail card (when a sat is selected) */
-  #detailCard {
-    position: absolute;
-    bottom: 110px;
-    left: 24px;
-    width: 320px;
-    background: var(--panel);
-    border: 1px solid var(--panel-line);
-    backdrop-filter: blur(14px);
-    z-index: 10;
-    opacity: 0;
-    transform: translateY(20px);
-    transition: all 0.3s ease;
-    pointer-events: none;
-  }
-  #detailCard.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
-  #detailCard::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0;
-    width: 12px; height: 12px;
-    border-top: 1px solid var(--cyan);
-    border-left: 1px solid var(--cyan);
-  }
-  #detailCard .head {
-    padding: 14px 18px;
-    border-bottom: 1px solid var(--panel-line);
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  #detailCard .head .swatch {
-    width: 10px; height: 10px;
-    border-radius: 50%;
-  }
-  #detailCard .head .name {
-    font-size: 14px; color: var(--text); flex: 1;
-  }
-  #detailCard .head .close {
-    cursor: pointer; color: var(--text-dim); font-size: 18px; line-height: 1;
-  }
-  #detailCard .head .close:hover { color: var(--cyan); }
-  .detail-row {
-    padding: 8px 18px;
-    display: flex;
-    justify-content: space-between;
-    font-size: 12px;
-    border-bottom: 1px solid rgba(79, 240, 255, 0.04);
-  }
-  .detail-row .l { color: var(--text-dim); letter-spacing: 1px; text-transform: uppercase; font-size: 10px; }
-  .detail-row .r { color: var(--text); font-family: 'Consolas', monospace; font-variant-numeric: tabular-nums; }
-
-  /* Controls hint */
-  .hint {
-    position: absolute;
-    bottom: 24px; right: 24px;
-    font-size: 10px;
-    color: var(--text-dim);
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    z-index: 10;
-    text-align: right;
-    line-height: 1.8;
-  }
-  .hint kbd {
-    background: rgba(79, 240, 255, 0.1);
-    border: 1px solid var(--panel-line);
-    padding: 2px 6px;
-    border-radius: 2px;
-    color: var(--cyan);
-    font-family: 'Consolas', monospace;
-    font-size: 10px;
-    margin: 0 2px;
-  }
-
-  /* Scrollbar */
-  .sat-list::-webkit-scrollbar { width: 4px; }
-  .sat-list::-webkit-scrollbar-track { background: transparent; }
-  .sat-list::-webkit-scrollbar-thumb { background: var(--cyan-dim); border-radius: 2px; }
-
-  /* Mobile guard - this app is for desktop */
-  @media (max-width: 900px) {
-    #app::after {
-      content: 'GlobalS is designed for desktop — please use a PC or laptop.';
-      position: fixed; inset: 0;
-      background: var(--bg-0);
-      color: var(--cyan);
-      display: flex; align-items: center; justify-content: center;
-      padding: 40px; text-align: center;
-      font-size: 16px; letter-spacing: 4px;
-      z-index: 999;
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>GlobalS — Global Satellite Tracker</title>
+  <meta name="description" content="Every active satellite in real time on a 3D globe, with pass predictions for your sky. Orbits from CelesTrak, computed with SGP4.">
+  <meta name="theme-color" content="#02040a">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="assets/icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="assets/icons/icon-180.png">
+  <link rel="stylesheet" href="css/globals.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "./vendor/three/build/three.module.js",
+      "three/addons/": "./vendor/three/examples/jsm/"
     }
   }
-</style>
+  </script>
+  <link rel="modulepreload" href="vendor/three/build/three.module.js">
+  <link rel="modulepreload" href="vendor/three/build/three.core.js">
+  <link rel="modulepreload" href="js/main.js">
 </head>
 <body>
 
-<!-- ============ LOADING SCREEN ============ -->
-<div id="loader">
-  <div class="loader-globe">
+<!-- ============ BOOT ============ -->
+<div id="boot" role="status" aria-live="polite">
+  <div class="boot-globe" aria-hidden="true">
     <div class="orbit-ring r1"></div>
     <div class="orbit-ring r2"></div>
-    <div class="sat-dot sat-orbit-a"></div>
-    <div class="sat-dot sat-orbit-b"></div>
-    <div class="sat-dot sat-orbit-c"></div>
+    <div class="sat-dot sat-a"></div>
+    <div class="sat-dot sat-b"></div>
+    <div class="sat-dot sat-c"></div>
     <svg viewBox="-100 -100 200 200" fill="none" stroke="#4ff0ff" stroke-width="0.5">
-      <!-- Globe sphere outline -->
-      <circle cx="0" cy="0" r="90" stroke="#4ff0ff" stroke-width="1" opacity="0.9"/>
-      <!-- Latitude lines (ellipses) -->
-      <ellipse cx="0" cy="0" rx="90" ry="20" opacity="0.5"/>
-      <ellipse cx="0" cy="0" rx="90" ry="40" opacity="0.4"/>
-      <ellipse cx="0" cy="0" rx="90" ry="60" opacity="0.35"/>
-      <ellipse cx="0" cy="0" rx="90" ry="80" opacity="0.3"/>
-      <!-- Longitude lines -->
-      <ellipse cx="0" cy="0" rx="20" ry="90" opacity="0.5"/>
-      <ellipse cx="0" cy="0" rx="40" ry="90" opacity="0.4"/>
-      <ellipse cx="0" cy="0" rx="60" ry="90" opacity="0.35"/>
-      <ellipse cx="0" cy="0" rx="80" ry="90" opacity="0.3"/>
-      <!-- Equator emphasis -->
-      <line x1="-90" y1="0" x2="90" y2="0" opacity="0.6" stroke-dasharray="2 3"/>
-      <line x1="0" y1="-90" x2="0" y2="90" opacity="0.6" stroke-dasharray="2 3"/>
-      <!-- Continent stylized dots -->
-      <g fill="#4ff0ff" stroke="none" opacity="0.7">
-        <circle cx="-30" cy="-20" r="1.5"/>
-        <circle cx="-25" cy="-15" r="1.2"/>
-        <circle cx="-20" cy="-10" r="1"/>
-        <circle cx="10" cy="-25" r="1.5"/>
-        <circle cx="20" cy="-20" r="1.3"/>
-        <circle cx="35" cy="-15" r="1.8"/>
-        <circle cx="40" cy="-5" r="1.2"/>
-        <circle cx="45" cy="10" r="1.5"/>
-        <circle cx="-15" cy="25" r="1.4"/>
-        <circle cx="-5" cy="35" r="1.2"/>
-        <circle cx="55" cy="30" r="1.6"/>
-        <circle cx="60" cy="40" r="1.3"/>
-      </g>
+      <circle r="90" stroke-width="1" opacity="0.9"/>
+      <ellipse rx="90" ry="20" opacity="0.5"/><ellipse rx="90" ry="40" opacity="0.4"/>
+      <ellipse rx="90" ry="60" opacity="0.35"/><ellipse rx="90" ry="80" opacity="0.3"/>
+      <ellipse rx="20" ry="90" opacity="0.5"/><ellipse rx="40" ry="90" opacity="0.4"/>
+      <ellipse rx="60" ry="90" opacity="0.35"/><ellipse rx="80" ry="90" opacity="0.3"/>
+      <line x1="-90" x2="90" opacity="0.6" stroke-dasharray="2 3"/>
+      <line y1="-90" y2="90" opacity="0.6" stroke-dasharray="2 3"/>
     </svg>
   </div>
-  <div class="brand">
-    <span class="b-g">G</span><span>lobal</span><span class="b-s">S</span><span class="dots" id="dots">...</span>
-  </div>
-  <div class="tagline">Global Satellites Tracking System</div>
-  <div class="progress-shell">
-    <div class="progress-bar" id="bar"></div>
-  </div>
-  <div class="progress-meta">
-    <span id="phase">INITIALIZING</span>
-    <span class="pct" id="pct">0%</span>
-  </div>
-  <div class="boot-log" id="bootlog"></div>
+  <div class="brand"><b>G</b>lobal<b>S</b><span class="dots" id="bootDots"></span></div>
+  <div class="tagline">Global Satellite Tracking System</div>
+  <div class="progress-shell"><div class="progress-bar" id="bootBar"></div></div>
+  <div class="progress-meta"><span id="bootPhase">STARTING</span><span class="pct" id="bootPct">0%</span></div>
+  <div class="boot-log" id="bootLog"></div>
+  <div class="boot-error" id="bootError" hidden></div>
 </div>
 
-<!-- ============ MAIN APP ============ -->
-<div id="app">
-  <canvas id="scene"></canvas>
+<!-- ============ APP ============ -->
+<div id="app" aria-hidden="true">
+  <canvas id="scene" tabindex="0" aria-label="3D globe with satellites. Click a satellite to select it."></canvas>
+  <div id="labels" aria-hidden="true"></div>
 
-  <div class="topbar">
-    <div class="logo">GLOBAL<b>S</b></div>
-    <div class="nav">
-      <span class="active">Tracking</span>
-      <span>Orbits</span>
-      <span>Coverage</span>
-      <span>Mission Log</span>
+  <header class="topbar">
+    <div class="logo">GLOBAL<b>S</b><span class="ver" id="appVersion"></span></div>
+    <nav class="tabs" role="tablist" aria-label="Views">
+      <button role="tab" id="tab-tracking" aria-controls="view-tracking" aria-selected="true" data-tab="tracking">Tracking</button>
+      <button role="tab" id="tab-passes" aria-controls="view-passes" aria-selected="false" data-tab="passes">Passes</button>
+      <button role="tab" id="tab-sky" aria-controls="view-sky" aria-selected="false" data-tab="sky">Sky</button>
+      <button role="tab" id="tab-data" aria-controls="view-data" aria-selected="false" data-tab="data">Data</button>
+    </nav>
+    <div class="top-right">
+      <span class="badge optional" id="dataBadge" title="Age of the orbital data">DATA —</span>
+      <span class="badge live" id="timeBadge" title="LIVE: real time. SIMULATED: you have moved the clock."><span class="dot"></span><span id="timeBadgeText">LIVE</span></span>
+      <button class="icon-btn" id="installBtn" hidden>Install</button>
+      <button class="icon-btn" id="helpBtn" aria-label="Help and keyboard shortcuts" title="Help (?)">?</button>
     </div>
-    <div class="right">
-      <div>NET <span style="color:var(--cyan)">SECURE</span></div>
-      <div>OBJECTS <span style="color:var(--cyan)" id="topObjects">0</span></div>
-      <div class="live"><div class="live-dot"></div> LIVE FEED</div>
-    </div>
-  </div>
+  </header>
 
-  <div class="panel" id="leftPanel">
-    <h3>Constellation Telemetry</h3>
-    <div class="stat"><span class="lbl">Tracked Sats</span><span class="val cyan" id="kTracked">0</span></div>
-    <div class="stat"><span class="lbl">Active Links</span><span class="val green" id="kLinks">0</span></div>
-    <div class="stat"><span class="lbl">Avg Altitude</span><span class="val" id="kAlt">0 km</span></div>
-    <div class="stat"><span class="lbl">Avg Velocity</span><span class="val" id="kVel">0 km/s</span></div>
-    <div class="stat"><span class="lbl">Coverage</span><span class="val amber" id="kCov">0%</span></div>
-    <div class="stat"><span class="lbl">Earth Rotation</span><span class="val" id="kRot">0.00°</span></div>
-  </div>
-
-  <div class="panel" id="rightPanel">
-    <h3>Active Targets</h3>
-    <div class="sat-list" id="satList"></div>
-  </div>
-
-  <div class="panel" id="bottomPanel">
-    <div class="clock-cell">
-      <div class="lbl">UTC</div>
-      <div class="val cyan" id="cUtc">--:--:--</div>
-    </div>
-    <div class="clock-cell">
-      <div class="lbl">Local</div>
-      <div class="val" id="cLocal">--:--:--</div>
-    </div>
-    <div class="clock-cell">
-      <div class="lbl">Julian Day</div>
-      <div class="val" id="cJd">--</div>
-    </div>
-    <div class="clock-cell">
-      <div class="lbl">Sidereal</div>
-      <div class="val" id="cSid">--</div>
-    </div>
-  </div>
-
-  <div id="detailCard">
-    <div class="head">
-      <div class="swatch" id="dSwatch"></div>
-      <div class="name" id="dName">--</div>
-      <div class="close" id="dClose">×</div>
-    </div>
-    <div class="detail-row"><span class="l">Designation</span><span class="r" id="dDesig">--</span></div>
-    <div class="detail-row"><span class="l">Altitude</span><span class="r" id="dAlt">--</span></div>
-    <div class="detail-row"><span class="l">Velocity</span><span class="r" id="dVel">--</span></div>
-    <div class="detail-row"><span class="l">Inclination</span><span class="r" id="dInc">--</span></div>
-    <div class="detail-row"><span class="l">Period</span><span class="r" id="dPer">--</span></div>
-    <div class="detail-row"><span class="l">Latitude</span><span class="r" id="dLat">--</span></div>
-    <div class="detail-row"><span class="l">Longitude</span><span class="r" id="dLon">--</span></div>
-    <div class="detail-row"><span class="l">Status</span><span class="r" style="color:var(--green)">NOMINAL</span></div>
-  </div>
-
-  <div class="hint">
-    <div>DRAG to rotate · SCROLL to zoom</div>
-    <div>Press <kbd>R</kbd> reset · <kbd>O</kbd> toggle orbits</div>
-  </div>
-</div>
-
-<script type="importmap">
-{
-  "imports": {
-    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-  }
-}
-</script>
-
-<script type="module">
-import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-
-/* =================== LOADING SCREEN =================== */
-const bar = document.getElementById('bar');
-const pct = document.getElementById('pct');
-const phase = document.getElementById('phase');
-const dots = document.getElementById('dots');
-const bootlog = document.getElementById('bootlog');
-
-const phases = [
-  { p: 12, label: 'INITIALIZING',         log: '[<span class="ok">OK</span>] Boot sequence engaged' },
-  { p: 24, label: 'LOADING KERNEL',       log: '[<span class="ok">OK</span>] Kernel modules loaded' },
-  { p: 38, label: 'GEODETIC MODEL',       log: '[<span class="ok">OK</span>] WGS-84 reference ellipsoid' },
-  { p: 52, label: 'STAR CATALOG',         log: '[<span class="ok">OK</span>] Hipparcos catalog · 118,322 entries' },
-  { p: 66, label: 'ORBITAL MECHANICS',    log: '[<span class="ok">OK</span>] SGP4 propagator online' },
-  { p: 78, label: 'SATELLITE DATABASE',   log: '[<span class="ok">OK</span>] 12,847 active objects indexed' },
-  { p: 88, label: 'GROUND STATIONS',      log: '[<span class="ok">OK</span>] 47 stations linked' },
-  { p: 96, label: 'CALIBRATING SENSORS',  log: '[<span class="warn">..</span>] Calibration in progress' },
-  { p: 100, label: 'READY',               log: '[<span class="ok">OK</span>] GlobalS online' },
-];
-
-let dotCount = 0;
-const dotsTimer = setInterval(() => {
-  dotCount = (dotCount + 1) % 4;
-  dots.textContent = '.'.repeat(dotCount);
-}, 350);
-
-let progress = 0;
-let phaseIdx = 0;
-const loadTimer = setInterval(() => {
-  progress += Math.random() * 2.4 + 0.6;
-  if (progress > 100) progress = 100;
-  bar.style.width = progress + '%';
-  pct.textContent = Math.floor(progress) + '%';
-
-  while (phaseIdx < phases.length && progress >= phases[phaseIdx].p) {
-    phase.textContent = phases[phaseIdx].label;
-    const line = document.createElement('div');
-    line.innerHTML = phases[phaseIdx].log;
-    bootlog.appendChild(line);
-    bootlog.scrollTop = bootlog.scrollHeight;
-    phaseIdx++;
-  }
-
-  if (progress >= 100) {
-    clearInterval(loadTimer);
-    clearInterval(dotsTimer);
-    dots.textContent = '';
-    setTimeout(() => {
-      document.getElementById('loader').classList.add('hidden');
-      document.getElementById('app').classList.add('show');
-      startScene();
-    }, 600);
-  }
-}, 80);
-
-/* =================== 3D SCENE =================== */
-const EARTH_RADIUS = 5;
-let scene, camera, renderer, controls, earth, atmosphere, starfield, satGroup, orbitGroup;
-let satellites = [];
-let showOrbits = true;
-let selected = null;
-let rotationDeg = 0;
-
-function startScene() {
-  const canvas = document.getElementById('scene');
-  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.setSize(window.innerWidth, window.innerHeight);
-
-  scene = new THREE.Scene();
-  scene.fog = new THREE.FogExp2(0x02040a, 0.012);
-
-  camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-  camera.position.set(0, 6, 18);
-
-  controls = new OrbitControls(camera, renderer.domElement);
-  controls.enableDamping = true;
-  controls.dampingFactor = 0.05;
-  controls.minDistance = 8;
-  controls.maxDistance = 40;
-  controls.enablePan = false;
-  controls.autoRotate = true;
-  controls.autoRotateSpeed = 0.3;
-
-  // Lighting
-  scene.add(new THREE.AmbientLight(0x445566, 0.6));
-  const sun = new THREE.DirectionalLight(0xfff2e0, 1.4);
-  sun.position.set(20, 8, 12);
-  scene.add(sun);
-  const rim = new THREE.DirectionalLight(0x4ff0ff, 0.4);
-  rim.position.set(-15, -5, -8);
-  scene.add(rim);
-
-  // Earth - wireframe-style with continents
-  buildEarth();
-  buildAtmosphere();
-  buildStarfield();
-  buildSatellites();
-  buildSidebar();
-
-  // Resize
-  window.addEventListener('resize', onResize);
-  window.addEventListener('keydown', onKey);
-  renderer.domElement.addEventListener('pointerdown', onPick);
-
-  animate();
-}
-
-function buildEarth() {
-  earth = new THREE.Group();
-  scene.add(earth);
-
-  // Solid sphere core
-  const coreGeo = new THREE.SphereGeometry(EARTH_RADIUS * 0.985, 64, 64);
-  const coreMat = new THREE.MeshPhongMaterial({
-    color: 0x0a1830,
-    emissive: 0x031428,
-    shininess: 8,
-    transparent: true,
-    opacity: 0.95,
-  });
-  earth.add(new THREE.Mesh(coreGeo, coreMat));
-
-  // Wireframe overlay (lat/lon grid)
-  const wireGeo = new THREE.SphereGeometry(EARTH_RADIUS, 32, 24);
-  const wireMat = new THREE.MeshBasicMaterial({
-    color: 0x4ff0ff,
-    wireframe: true,
-    transparent: true,
-    opacity: 0.18,
-  });
-  earth.add(new THREE.Mesh(wireGeo, wireMat));
-
-  // Continent dots (procedural based on lat/lon coordinates of major land masses)
-  const continentDots = generateContinentDots();
-  const dotGeo = new THREE.BufferGeometry();
-  const positions = new Float32Array(continentDots.length * 3);
-  continentDots.forEach((p, i) => {
-    positions[i*3] = p.x;
-    positions[i*3+1] = p.y;
-    positions[i*3+2] = p.z;
-  });
-  dotGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  const dotMat = new THREE.PointsMaterial({
-    color: 0x5cffb1,
-    size: 0.055,
-    transparent: true,
-    opacity: 0.9,
-    sizeAttenuation: true,
-  });
-  earth.add(new THREE.Points(dotGeo, dotMat));
-
-  // Equator ring (bright)
-  const eqGeo = new THREE.RingGeometry(EARTH_RADIUS * 1.001, EARTH_RADIUS * 1.005, 128);
-  const eqMat = new THREE.MeshBasicMaterial({ color: 0x4ff0ff, transparent: true, opacity: 0.35, side: THREE.DoubleSide });
-  const eq = new THREE.Mesh(eqGeo, eqMat);
-  eq.rotation.x = Math.PI / 2;
-  earth.add(eq);
-
-  // Prime meridian
-  const meridianPts = [];
-  for (let i = 0; i <= 128; i++) {
-    const a = (i / 128) * Math.PI * 2;
-    meridianPts.push(new THREE.Vector3(0, Math.cos(a) * EARTH_RADIUS * 1.002, Math.sin(a) * EARTH_RADIUS * 1.002));
-  }
-  const meridian = new THREE.Line(
-    new THREE.BufferGeometry().setFromPoints(meridianPts),
-    new THREE.LineBasicMaterial({ color: 0x4ff0ff, transparent: true, opacity: 0.3 })
-  );
-  earth.add(meridian);
-}
-
-function generateContinentDots() {
-  // Stylized continent outlines via lat/lon (deg) — approximate landmasses
-  const regions = [
-    // North America
-    ...rect(25, 60, -130, -65, 0.7),
-    // South America
-    ...rect(-55, 12, -80, -35, 0.75),
-    // Europe
-    ...rect(36, 70, -10, 40, 0.85),
-    // Africa
-    ...rect(-35, 35, -18, 50, 0.7),
-    // Asia
-    ...rect(8, 75, 40, 145, 0.55),
-    // Australia
-    ...rect(-40, -10, 112, 154, 0.85),
-    // Antarctica
-    ...rect(-85, -65, -180, 180, 0.4),
-    // Greenland
-    ...rect(60, 83, -55, -20, 0.85),
-    // Indonesia / Japan / Philippines
-    ...rect(-10, 40, 100, 145, 0.5),
-  ];
-  return regions.map(([lat, lon]) => latLonToVec3(lat, lon, EARTH_RADIUS * 1.005));
-}
-
-function rect(latMin, latMax, lonMin, lonMax, density) {
-  // Sample points within a lat/lon rectangle. Density 0-1 controls keep probability.
-  const out = [];
-  const step = 3.5;
-  for (let lat = latMin; lat <= latMax; lat += step) {
-    for (let lon = lonMin; lon <= lonMax; lon += step) {
-      // Use deterministic pseudo-random to create "coastline" feel
-      const h = Math.abs(Math.sin(lat * 12.9898 + lon * 78.233) * 43758.5453);
-      const r = h - Math.floor(h);
-      if (r < density) out.push([lat, lon]);
-    }
-  }
-  return out;
-}
-
-function latLonToVec3(lat, lon, r) {
-  const phi = (90 - lat) * Math.PI / 180;
-  const theta = (lon + 180) * Math.PI / 180;
-  return new THREE.Vector3(
-    -r * Math.sin(phi) * Math.cos(theta),
-     r * Math.cos(phi),
-     r * Math.sin(phi) * Math.sin(theta)
-  );
-}
-
-function buildAtmosphere() {
-  const atmGeo = new THREE.SphereGeometry(EARTH_RADIUS * 1.12, 64, 64);
-  const atmMat = new THREE.ShaderMaterial({
-    transparent: true,
-    side: THREE.BackSide,
-    blending: THREE.AdditiveBlending,
-    uniforms: { uColor: { value: new THREE.Color(0x4ff0ff) } },
-    vertexShader: `
-      varying vec3 vNormal;
-      void main() {
-        vNormal = normalize(normalMatrix * normal);
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-      }`,
-    fragmentShader: `
-      uniform vec3 uColor;
-      varying vec3 vNormal;
-      void main() {
-        float intensity = pow(0.7 - dot(vNormal, vec3(0,0,1)), 2.5);
-        gl_FragColor = vec4(uColor, 1.0) * intensity;
-      }`,
-  });
-  atmosphere = new THREE.Mesh(atmGeo, atmMat);
-  scene.add(atmosphere);
-}
-
-function buildStarfield() {
-  const starCount = 4000;
-  const positions = new Float32Array(starCount * 3);
-  const colors = new Float32Array(starCount * 3);
-  for (let i = 0; i < starCount; i++) {
-    const r = 200 + Math.random() * 200;
-    const theta = Math.random() * Math.PI * 2;
-    const phi = Math.acos(2 * Math.random() - 1);
-    positions[i*3]   = r * Math.sin(phi) * Math.cos(theta);
-    positions[i*3+1] = r * Math.cos(phi);
-    positions[i*3+2] = r * Math.sin(phi) * Math.sin(theta);
-    const t = Math.random();
-    colors[i*3]   = 0.7 + t * 0.3;
-    colors[i*3+1] = 0.8 + t * 0.2;
-    colors[i*3+2] = 1.0;
-  }
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-  const mat = new THREE.PointsMaterial({
-    size: 0.8,
-    vertexColors: true,
-    transparent: true,
-    opacity: 0.85,
-    sizeAttenuation: true,
-  });
-  starfield = new THREE.Points(geo, mat);
-  scene.add(starfield);
-}
-
-const SAT_DEFS = [
-  { name: 'ISS (ZARYA)',     desig: '25544', alt: 0.92, inc: 51.6,  color: 0x4ff0ff, speed: 1.0,  phase: 0.0 },
-  { name: 'HUBBLE',          desig: '20580', alt: 0.95, inc: 28.5,  color: 0xff5fa8, speed: 0.95, phase: 1.2 },
-  { name: 'STARLINK-4521',   desig: '53412', alt: 1.05, inc: 53.0,  color: 0xffb547, speed: 0.88, phase: 0.6 },
-  { name: 'STARLINK-4522',   desig: '53413', alt: 1.05, inc: 53.0,  color: 0xffb547, speed: 0.88, phase: 1.4 },
-  { name: 'STARLINK-4523',   desig: '53414', alt: 1.05, inc: 53.0,  color: 0xffb547, speed: 0.88, phase: 2.2 },
-  { name: 'GPS IIF-12',      desig: '41019', alt: 2.50, inc: 55.0,  color: 0x5cffb1, speed: 0.55, phase: 0.4 },
-  { name: 'GPS IIIA-05',     desig: '46826', alt: 2.50, inc: 55.0,  color: 0x5cffb1, speed: 0.55, phase: 1.8 },
-  { name: 'GALILEO-26',      desig: '49809', alt: 2.70, inc: 56.0,  color: 0x5cffb1, speed: 0.52, phase: 2.5 },
-  { name: 'GOES-18',         desig: '51850', alt: 3.20, inc: 0.1,   color: 0xffe066, speed: 0.40, phase: 3.0 },
-  { name: 'METEOSAT-11',     desig: '40732', alt: 3.20, inc: 0.1,   color: 0xffe066, speed: 0.40, phase: 4.5 },
-  { name: 'TERRA',           desig: '25994', alt: 1.10, inc: 98.2,  color: 0xff5fa8, speed: 0.86, phase: 5.1 },
-  { name: 'LANDSAT-9',       desig: '49260', alt: 1.12, inc: 98.2,  color: 0xff5fa8, speed: 0.85, phase: 2.8 },
-  { name: 'SENTINEL-2A',     desig: '40697', alt: 1.13, inc: 98.6,  color: 0x4ff0ff, speed: 0.84, phase: 1.5 },
-  { name: 'JWST GATEWAY',    desig: '50463', alt: 4.50, inc: 12.0,  color: 0xff8f4f, speed: 0.30, phase: 0.8 },
-];
-
-function buildSatellites() {
-  satGroup = new THREE.Group();
-  orbitGroup = new THREE.Group();
-  scene.add(satGroup);
-  scene.add(orbitGroup);
-
-  SAT_DEFS.forEach((def, i) => {
-    const r = EARTH_RADIUS + def.alt * 1.5;
-
-    // Orbit line
-    const pts = [];
-    for (let j = 0; j <= 128; j++) {
-      const a = (j / 128) * Math.PI * 2;
-      pts.push(new THREE.Vector3(Math.cos(a) * r, 0, Math.sin(a) * r));
-    }
-    const orbitGeo = new THREE.BufferGeometry().setFromPoints(pts);
-    const orbitMat = new THREE.LineBasicMaterial({
-      color: def.color, transparent: true, opacity: 0.18,
-    });
-    const orbit = new THREE.Line(orbitGeo, orbitMat);
-    orbit.rotation.x = def.inc * Math.PI / 180;
-    orbit.rotation.y = (i * 23) * Math.PI / 180;
-    orbitGroup.add(orbit);
-
-    // Satellite body (glowing point + small mesh)
-    const satMat = new THREE.SpriteMaterial({
-      color: def.color,
-      transparent: true,
-      opacity: 1,
-      blending: THREE.AdditiveBlending,
-    });
-    const sprite = new THREE.Sprite(satMat);
-    sprite.scale.set(0.45, 0.45, 0.45);
-
-    // Trail
-    const trailLength = 40;
-    const trailPositions = new Float32Array(trailLength * 3);
-    const trailGeo = new THREE.BufferGeometry();
-    trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPositions, 3));
-    const trailMat = new THREE.LineBasicMaterial({
-      color: def.color, transparent: true, opacity: 0.6,
-    });
-    const trail = new THREE.Line(trailGeo, trailMat);
-
-    satGroup.add(sprite);
-    satGroup.add(trail);
-
-    satellites.push({
-      def,
-      sprite,
-      trail,
-      orbit,
-      r,
-      angle: def.phase,
-      trailPts: [],
-      trailLength,
-    });
-  });
-}
-
-function buildSidebar() {
-  const list = document.getElementById('satList');
-  list.innerHTML = '';
-  satellites.forEach((s, i) => {
-    const div = document.createElement('div');
-    div.className = 'sat-item';
-    div.dataset.idx = i;
-    const hex = '#' + s.def.color.toString(16).padStart(6, '0');
-    div.innerHTML = `
-      <div class="sat-swatch" style="background:${hex}; color:${hex};"></div>
-      <div class="sat-meta">
-        <div class="sat-name">${s.def.name}</div>
-        <div class="sat-detail">NORAD ${s.def.desig} · ALT ${(s.def.alt * 400).toFixed(0)}km</div>
+  <aside class="panel" id="leftPanel" aria-label="Controls">
+    <!-- TRACKING -->
+    <section id="view-tracking" role="tabpanel" aria-labelledby="tab-tracking">
+      <div class="search">
+        <input id="search" type="search" autocomplete="off" spellcheck="false"
+               placeholder="Name, NORAD or COSPAR ID…" aria-label="Search satellites"
+               aria-controls="searchResults" aria-autocomplete="list">
       </div>
-    `;
-    div.addEventListener('click', () => selectSat(i));
-    list.appendChild(div);
-  });
-  document.getElementById('topObjects').textContent = satellites.length;
-  document.getElementById('kTracked').textContent = satellites.length;
-  document.getElementById('kLinks').textContent = satellites.length - 1;
-}
+      <div class="panel-scroll" style="flex:1">
+        <ul class="results" id="searchResults" role="listbox" aria-label="Search results"></ul>
+        <h3>Layers <span class="aside" id="layersTotal"></span></h3>
+        <ul class="layers" id="layers"></ul>
+        <h3>Display</h3>
+        <div class="segmented" role="group" aria-label="Globe style">
+          <button id="styleHolo" aria-pressed="true">Holographic</button>
+          <button id="stylePhoto" aria-pressed="false">Photoreal</button>
+        </div>
+        <div class="toggles" id="toggles"></div>
+        <h3>Telemetry</h3>
+        <div class="stats">
+          <div class="stat"><div class="lbl">Objects</div><div class="val cyan" id="stTotal">—</div></div>
+          <div class="stat"><div class="lbl">Shown</div><div class="val" id="stShown">—</div></div>
+          <div class="stat"><div class="lbl">Sunlit</div><div class="val amber" id="stLit">—</div></div>
+          <div class="stat"><div class="lbl">Overhead</div><div class="val green" id="stOverhead">—</div></div>
+          <div class="stat"><div class="lbl">Median age</div><div class="val" id="stAge">—</div></div>
+          <div class="stat"><div class="lbl">Frame rate</div><div class="val" id="stFps">—</div></div>
+        </div>
+      </div>
+    </section>
 
-function selectSat(i) {
-  selected = i;
-  document.querySelectorAll('.sat-item').forEach((el, k) => {
-    el.classList.toggle('active', k === i);
-  });
-  const card = document.getElementById('detailCard');
-  card.classList.add('show');
-  const s = satellites[i];
-  const hex = '#' + s.def.color.toString(16).padStart(6, '0');
-  document.getElementById('dSwatch').style.background = hex;
-  document.getElementById('dSwatch').style.boxShadow = `0 0 8px ${hex}`;
-  document.getElementById('dName').textContent = s.def.name;
-  document.getElementById('dDesig').textContent = 'NORAD ' + s.def.desig;
-  document.getElementById('dInc').textContent = s.def.inc.toFixed(1) + '°';
-  document.getElementById('dPer').textContent = (90 + s.def.alt * 30).toFixed(1) + ' min';
-}
+    <!-- PASSES -->
+    <section id="view-passes" role="tabpanel" aria-labelledby="tab-passes" hidden>
+      <h3>Your location</h3>
+      <form class="form" id="locationForm">
+        <label class="wide">Place<input id="locName" maxlength="60"></label>
+        <label>Latitude (°N)<input id="locLat" inputmode="decimal"></label>
+        <label>Longitude (°E)<input id="locLon" inputmode="decimal"></label>
+        <label>Height (m)<input id="locH" inputmode="decimal"></label>
+        <label>Min elevation<select id="locMinEl"><option>0</option><option>5</option><option selected>10</option><option>20</option><option>30</option></select></label>
+        <div class="wide" style="display:flex;gap:6px">
+          <button type="submit" class="btn primary">Save</button>
+          <button type="button" class="btn" id="locGeo">Use my location</button>
+          <button type="button" class="btn" id="locCebu">Cebu City</button>
+        </div>
+      </form>
+      <h3>Tonight's visible passes <span class="aside" id="tonightInfo"></span></h3>
+      <div class="panel-scroll" style="flex:1"><ul class="passlist" id="tonightList"></ul></div>
+    </section>
 
-document.getElementById('dClose').addEventListener('click', () => {
-  selected = null;
-  document.getElementById('detailCard').classList.remove('show');
-  document.querySelectorAll('.sat-item').forEach(el => el.classList.remove('active'));
-});
+    <!-- SKY -->
+    <section id="view-sky" role="tabpanel" aria-labelledby="tab-sky" hidden>
+      <h3>Your sky now <span class="aside" id="skyInfo"></span></h3>
+      <div class="radar-wrap"><svg class="radar" id="skyRadar" viewBox="-130 -130 260 260" role="img" aria-label="Satellites above your horizon"></svg>
+        <div class="radar-caption" id="skyCaption"></div></div>
+      <h3>Overhead <span class="aside" id="overheadCount"></span></h3>
+      <div class="panel-scroll" style="flex:1"><ul class="rowlist results" id="overheadList"></ul></div>
+    </section>
 
-function onPick(ev) {
-  const raycaster = new THREE.Raycaster();
-  raycaster.params.Sprite = { threshold: 0.3 };
-  const mouse = new THREE.Vector2(
-    (ev.clientX / window.innerWidth) * 2 - 1,
-    -(ev.clientY / window.innerHeight) * 2 + 1
-  );
-  raycaster.setFromCamera(mouse, camera);
-  const sprites = satellites.map(s => s.sprite);
-  const hits = raycaster.intersectObjects(sprites);
-  if (hits.length) {
-    const idx = sprites.indexOf(hits[0].object);
-    if (idx >= 0) selectSat(idx);
-  }
-}
+    <!-- DATA -->
+    <section id="view-data" role="tabpanel" aria-labelledby="tab-data" hidden>
+      <div class="panel-scroll" style="flex:1">
+        <h3>Orbital data</h3>
+        <dl class="kv" id="dataInfo"></dl>
+        <div id="dataNotes"></div>
+        <h3>Import elements</h3>
+        <div class="text"><p>Load OMM JSON (e.g. CelesTrak <span class="mono">FORMAT=json</span>) or TLE text. Drop a file anywhere, or:</p></div>
+        <div class="actions">
+          <input type="file" id="importFile" accept=".json,.txt,.tle,.3le,application/json,text/plain" hidden>
+          <button class="btn" id="importBtn">Choose file…</button>
+          <label class="btn"><input type="checkbox" id="importReplace"> Replace catalogue</label>
+        </div>
+        <div id="importReport"></div>
+        <h3>Accuracy</h3>
+        <div class="text" id="accuracyText"></div>
+        <h3>Credits</h3>
+        <div class="text" id="creditsText"></div>
+      </div>
+    </section>
+  </aside>
 
-function onKey(e) {
-  if (e.key.toLowerCase() === 'r') {
-    camera.position.set(0, 6, 18);
-    controls.target.set(0, 0, 0);
-    controls.update();
-  }
-  if (e.key.toLowerCase() === 'o') {
-    showOrbits = !showOrbits;
-    orbitGroup.visible = showOrbits;
-  }
-}
+  <aside class="panel" id="detailPanel" aria-label="Selected satellite" hidden>
+    <div class="detail-head">
+      <span class="swatch" id="dSwatch"></span>
+      <div style="flex:1;min-width:0">
+        <div class="detail-name" id="dName">—</div>
+        <div class="detail-meta" id="dMeta"></div>
+      </div>
+      <button class="close-btn" id="dClose" aria-label="Close">×</button>
+    </div>
+    <div class="panel-scroll" style="flex:1">
+      <div class="actions" id="dActions">
+        <button class="btn" id="dFollow" aria-pressed="false" title="Follow (F)">Follow</button>
+        <button class="btn" id="dCenter">Centre</button>
+        <button class="btn" id="dPasses">Passes</button>
+      </div>
+      <dl class="kv" id="dKv"></dl>
+      <div id="dNotes"></div>
+      <h3>Next passes <span class="aside" id="dPassInfo"></span></h3>
+      <ul class="passlist" id="dPassList"></ul>
+      <div class="radar-wrap" id="dRadarWrap" hidden>
+        <svg class="radar" id="dRadar" viewBox="-130 -130 260 260" role="img" aria-label="Pass across the sky"></svg>
+        <div class="radar-caption" id="dRadarCaption"></div>
+      </div>
+    </div>
+  </aside>
 
-function onResize() {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-}
+  <footer class="panel" id="timebar" aria-label="Time">
+    <div class="clock-cell"><div class="lbl">UTC</div><div class="val cyan" id="cUtc">--:--:--</div><div class="date" id="cUtcDate"></div></div>
+    <div class="clock-cell"><div class="lbl" id="cLocalLbl">Local</div><div class="val" id="cLocal">--:--:--</div><div class="date" id="cLocalDate"></div></div>
+    <div class="clock-cell opt"><div class="lbl">GMST</div><div class="val" id="cGmst">--:--:--</div></div>
+    <div class="clock-cell lst"><div class="lbl">LST</div><div class="val" id="cLst">--:--:--</div></div>
+    <div class="clock-cell opt"><div class="lbl">Julian Date</div><div class="val" id="cJd">--</div></div>
+    <div class="time-controls">
+      <button id="tBack" title="Back one hour (Shift+←)" aria-label="Back one hour">−1h</button>
+      <button id="tSlower" title="Slower / reverse ([)" aria-label="Slower">«</button>
+      <button id="tPlay" title="Pause / play (Space)" aria-label="Pause">❚❚</button>
+      <button id="tFaster" title="Faster (])" aria-label="Faster">»</button>
+      <button id="tFwd" title="Forward one hour (Shift+→)" aria-label="Forward one hour">+1h</button>
+      <span class="rate" id="tRate" aria-live="polite">1×</span>
+      <input type="datetime-local" id="tJump" step="1" aria-label="Jump to date and time">
+      <button class="now-btn" id="tNow" title="Back to now (N)">NOW</button>
+    </div>
+  </footer>
 
-const clock = new THREE.Clock();
+  <div id="chips" aria-live="polite"></div>
+  <div id="toasts" aria-live="polite"></div>
 
-function animate() {
-  requestAnimationFrame(animate);
-  const dt = clock.getDelta();
-  const t = clock.elapsedTime;
+  <dialog class="panel" id="helpDialog" aria-labelledby="helpTitle">
+    <h3 id="helpTitle">GlobalS — help <span class="aside"><button class="close-btn" id="helpClose" aria-label="Close">×</button></span></h3>
+    <div class="text">
+      <p>Every dot is a real, active satellite, positioned with SGP4 from public orbital data (CelesTrak). Drag to rotate, scroll to zoom, click a dot to select it.</p>
+    </div>
+    <div class="shortcuts">
+      <kbd>/</kbd><span>Search</span>
+      <kbd>Space</kbd><span>Pause / play time</span>
+      <kbd>[</kbd> <kbd>]</kbd><span>Slower / faster (below 0 runs backwards)</span>
+      <kbd>Shift</kbd>+<kbd>←</kbd><kbd>→</kbd><span>Step one hour</span>
+      <kbd>N</kbd><span>Back to now</span>
+      <kbd>F</kbd><span>Follow the selected satellite</span>
+      <kbd>O</kbd><span>Orbit and ground track</span>
+      <kbd>V</kbd><span>Holographic / photoreal globe</span>
+      <kbd>C</kbd><span>Constellation lines</span>
+      <kbd>G</kbd><span>Latitude/longitude grid</span>
+      <kbd>R</kbd><span>Reset the view</span>
+      <kbd>Esc</kbd><span>Deselect</span>
+    </div>
+  </dialog>
 
-  // Rotate earth slowly
-  earth.rotation.y += dt * 0.05;
-  rotationDeg = (rotationDeg + dt * 0.05 * 180 / Math.PI) % 360;
+  <div id="dropOverlay" hidden>Drop OMM JSON or TLE file</div>
+</div>
 
-  // Move satellites
-  let totalAlt = 0, totalVel = 0;
-  satellites.forEach(s => {
-    s.angle += dt * s.def.speed * 0.25;
-    const x = Math.cos(s.angle) * s.r;
-    const z = Math.sin(s.angle) * s.r;
-    const local = new THREE.Vector3(x, 0, z);
-    // Apply orbit plane rotation
-    local.applyEuler(s.orbit.rotation);
-    s.sprite.position.copy(local);
-
-    // Pulse selected
-    if (selected !== null && satellites[selected] === s) {
-      const pulse = 0.45 + Math.sin(t * 4) * 0.15;
-      s.sprite.scale.set(pulse * 2, pulse * 2, pulse * 2);
-    } else {
-      s.sprite.scale.set(0.45, 0.45, 0.45);
-    }
-
-    // Trail
-    s.trailPts.push(local.clone());
-    if (s.trailPts.length > s.trailLength) s.trailPts.shift();
-    const arr = s.trail.geometry.attributes.position.array;
-    for (let i = 0; i < s.trailLength; i++) {
-      const p = s.trailPts[i] || s.trailPts[s.trailPts.length-1] || local;
-      arr[i*3] = p.x; arr[i*3+1] = p.y; arr[i*3+2] = p.z;
-    }
-    s.trail.geometry.attributes.position.needsUpdate = true;
-
-    totalAlt += s.def.alt * 400;
-    totalVel += 7.8 / Math.sqrt(1 + s.def.alt * 0.3);
-  });
-
-  // Stats
-  document.getElementById('kAlt').textContent = (totalAlt / satellites.length).toFixed(0) + ' km';
-  document.getElementById('kVel').textContent = (totalVel / satellites.length).toFixed(2) + ' km/s';
-  document.getElementById('kCov').textContent = (72 + Math.sin(t * 0.3) * 8).toFixed(1) + '%';
-  document.getElementById('kRot').textContent = rotationDeg.toFixed(2) + '°';
-
-  // Selected detail panel updates
-  if (selected !== null) {
-    const s = satellites[selected];
-    const pos = s.sprite.position;
-    const lat = Math.asin(pos.y / pos.length()) * 180 / Math.PI;
-    const lon = Math.atan2(pos.z, pos.x) * 180 / Math.PI;
-    document.getElementById('dAlt').textContent = (s.def.alt * 400).toFixed(1) + ' km';
-    document.getElementById('dVel').textContent = (7.8 / Math.sqrt(1 + s.def.alt * 0.3)).toFixed(3) + ' km/s';
-    document.getElementById('dLat').textContent = lat.toFixed(3) + '°';
-    document.getElementById('dLon').textContent = lon.toFixed(3) + '°';
-  }
-
-  // Clocks
-  const now = new Date();
-  document.getElementById('cUtc').textContent = now.toISOString().substr(11, 8);
-  document.getElementById('cLocal').textContent = now.toTimeString().substr(0, 8);
-  const jd = (now.getTime() / 86400000) + 2440587.5;
-  document.getElementById('cJd').textContent = jd.toFixed(4);
-  const sid = ((jd - 2451545.0) * 24.06570982441908) % 24;
-  const sh = Math.floor(sid), sm = Math.floor((sid - sh) * 60), ss = Math.floor(((sid - sh) * 60 - sm) * 60);
-  document.getElementById('cSid').textContent =
-    String(sh).padStart(2,'0') + ':' + String(sm).padStart(2,'0') + ':' + String(ss).padStart(2,'0');
-
-  // Starfield gentle drift
-  starfield.rotation.y += dt * 0.005;
-
-  controls.update();
-  renderer.render(scene, camera);
-}
-</script>
-
+<noscript><p style="position:fixed;inset:0;display:grid;place-items:center;color:#4ff0ff">GlobalS needs JavaScript and WebGL 2.</p></noscript>
+<script type="module" src="js/main.js"></script>
 </body>
 </html>
