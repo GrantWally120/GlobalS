@@ -14,6 +14,13 @@ import { LOCAL_TZ } from './timebar.js';
 
 const KIND_LABEL = { visible: 'Visible', daylight: 'Daylight', eclipsed: 'In shadow' };
 
+/** How far the shown time is from the elements' epoch: "3.2 h", or "55 min before epoch" when time-travelling back. */
+function elementAge(ageDays) {
+  const days = Math.abs(ageDays);
+  const span = days < 2 ? fmtAge(days * 24).replace(' ago', '') : `${days.toFixed(1)} days`;
+  return ageDays < 0 && span !== 'just now' ? `${span} before epoch` : span;
+}
+
 export function initDetails(app) {
   const panel = $('#detailPanel');
   const list = $('#dPassList');
@@ -138,15 +145,14 @@ export function initDetails(app) {
         ['Latitude', fmtLat(geo.lat / DEG)],
         ['Longitude', fmtLon(geo.lon / DEG)],
         ['Sunlight', lit ? 'Sunlit' : 'In Earth’s shadow', lit ? 'good' : ''],
-        [`From ${o.name}`, `${fmtDeg(la.azDeg, 1)} ${compass(la.azDeg)} · ${fmtDeg(la.elDeg, 1)} up`, la.elDeg > 0 ? 'good' : ''],
+        [`From ${o.name}`, `${fmtDeg(la.azDeg, 1)} ${compass(la.azDeg)} · ${la.elDeg >= 0 ? `${fmtDeg(la.elDeg, 1)} up` : `${fmtDeg(-la.elDeg, 1)} below`}`, la.elDeg > 0 ? 'good' : ''],
         ['Range', `${fmtKm(la.rangeKm)} · ${la.rangeRateKms >= 0 ? '+' : '−'}${Math.abs(la.rangeRateKms).toFixed(2)} km/s`],
         ['Orbit', `${ORBIT_CLASSES[app.meta.orbits[app.selected]]} · ${fmtDuration(periodSec(rec))}`],
         ['Inclination', fmtDeg(rec.satrec.inclo / DEG, 2)],
         ['Apogee × perigee', `${fmtInt(ap.apogeeKm)} × ${fmtInt(ap.perigeeKm)} km`],
         ['Eccentricity', rec.satrec.ecco.toFixed(5)],
         ['Elements from', `${new Date(rec.epochMs).toISOString().slice(0, 16).replace('T', ' ')} UTC`],
-        ['Element age', `${Math.abs(ageDays) < 2 ? fmtAge(ageDays * 24).replace(' ago', '') : `${Math.abs(ageDays).toFixed(1)} days`}${ageDays < 0 ? ' in the future' : ''}`,
-          Math.abs(ageDays) > ageLimit ? 'warn' : ''],
+        ['Element age', elementAge(ageDays), Math.abs(ageDays) > ageLimit ? 'warn' : ''],
       ]);
       const notes = $('#dNotes');
       const msg = Math.abs(ageDays) > ageLimit

@@ -213,7 +213,7 @@ async function start() {
     swarm.setCatalog(meta, app.categoryKeys);
     swarm.setShown(shownMask());
     tracking.setCatalog(meta);
-    const ages = Array.from(meta.epochs, (e) => (clock.now() - e) / 86400e3).sort((a, b) => a - b);
+    const ages = Array.from(meta.epochs, (e) => (clock.realNow() - e) / 86400e3).sort((a, b) => a - b); // data freshness
     app.medianAgeDays = ages.length ? ages[Math.floor(ages.length / 2)] : NaN;
     tonightAt = -Infinity;
     if (activeTab === 'passes') requestTonight();

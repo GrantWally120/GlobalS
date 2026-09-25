@@ -125,7 +125,7 @@ export function initTracking(app) {
       setText($('#stShown'), fmtInt(shown));
       setText($('#stLit'), fmtInt(lit));
       setText($('#stOverhead'), overhead == null ? '—' : fmtInt(overhead));
-      setText($('#stAge'), Number.isFinite(medianAgeDays) ? `${medianAgeDays.toFixed(1)} d` : '—');
+      setText($('#stAge'), Number.isFinite(medianAgeDays) ? `${Math.max(0, medianAgeDays).toFixed(1)} d` : '—');
       setText($('#stFps'), fps ? `${Math.round(fps)} fps` : '—');
     },
   };
