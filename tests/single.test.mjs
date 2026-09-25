@@ -1,10 +1,13 @@
 // The downloadable single-file build (tools/build-single.mjs) and where the app looks for data.
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { test } from 'node:test';
 import { FEED_URLS } from '../js/config.js';
 import { dataCandidates, resolveData } from '../js/data/loader.js';
 import { buildSingle } from '../tools/build-single.mjs';
+import { stage } from '../tools/stage-site.mjs';
 
 const built = buildSingle();
 const bundleJson = /<script type="application\/json" id="globals-bundle">([\s\S]*?)<\/script>/.exec(built.html)?.[1];
@@ -51,6 +54,22 @@ test('single file: modules load dependencies first, and every import points insi
   const main = bundle.modules['js/main.js'];
   assert.ok(main.includes("new URL('\uFDD0W:js/workers/propagator.worker.js')"));
   assert.ok(main.includes("new URL('\uFDD0W:js/workers/passes.worker.js')"));
+});
+
+test('single file: a checkout with Windows (CRLF) line endings builds the identical file', () => {
+  const tmp = mkdtempSync(join(tmpdir(), 'globals-crlf-'));
+  try {
+    const dir = join(tmp, 'site');
+    stage(dir);
+    for (const f of ['index.html', 'css/globals.css', 'js/main.js', 'js/workers/propagator.worker.js',
+      'vendor/three/examples/jsm/controls/OrbitControls.js', 'assets/icons/icon.svg']) {
+      const p = join(dir, ...f.split('/'));
+      writeFileSync(p, readFileSync(p, 'utf8').replace(/\r?\n/g, '\r\n'));
+    }
+    assert.equal(buildSingle(dir).html, built.html);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
 });
 
 test('the small starter file (e.g. in Google Drive) loads this build from the app branch', () => {

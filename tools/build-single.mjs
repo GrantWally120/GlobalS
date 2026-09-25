@@ -25,6 +25,9 @@ const MODULE = '﷐M:'; // placeholder: blob: URL of a module (U+FDD0 never occu
 const WORKER = '﷐W:'; // placeholder: blob: URL of a worker's classic start-up script
 const TYPES = { '.json': 'application/json', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png', '.svg': 'image/svg+xml' };
 
+/** "\r\n" → "\n". A Git for Windows checkout may have CRLF line endings; this way it builds the same file as CI. */
+const lf = (text) => text.replace(/\r\n/g, '\n');
+
 /** Source with every import specifier (and worker URL) replaced by a placeholder. */
 function linkable(path, mod) {
   let out = mod.source;
@@ -99,7 +102,7 @@ export function buildSingle(root = ROOT) {
   const page = g.order(entry);
   const workers = Object.fromEntries([...g.workerEntries].sort().map((w) => [w, g.order(w)]));
   const modules = {};
-  for (const p of [...new Set([...page, ...Object.values(workers).flat()])].sort()) modules[p] = linkable(p, g.info.get(p));
+  for (const p of [...new Set([...page, ...Object.values(workers).flat()])].sort()) modules[p] = lf(linkable(p, g.info.get(p)));
 
   const read = (p) => readFileSync(join(root, ...p.split('/')));
   const assets = {};
@@ -107,7 +110,7 @@ export function buildSingle(root = ROOT) {
     const type = TYPES[extname(p).toLowerCase()];
     if (!type) throw new Error(`don't know how to embed ${p}`);
     assets[p] = type === 'application/json'
-      ? { type, text: read(p).toString('utf8') }
+      ? { type, text: lf(read(p).toString('utf8')) }
       : { type, dataUrl: `data:${type};base64,${read(p).toString('base64')}` };
   }
 
@@ -115,9 +118,9 @@ export function buildSingle(root = ROOT) {
   const build = createHash('sha256').update(JSON.stringify(payload)).digest('hex').slice(0, 12);
   const bundle = scriptJson({ build, ...payload });
 
-  let html = read('index.html').toString('utf8');
-  const css = read('css/globals.css').toString('utf8');
-  const icon = `data:image/svg+xml;base64,${read('assets/icons/icon.svg').toString('base64')}`;
+  let html = lf(read('index.html').toString('utf8'));
+  const css = lf(read('css/globals.css').toString('utf8'));
+  const icon = `data:image/svg+xml;base64,${Buffer.from(lf(read('assets/icons/icon.svg').toString('utf8'))).toString('base64')}`;
   const edits = [
     [/[ \t]*<link rel="manifest"[^>]*>\n/, ''],
     [/[ \t]*<link rel="apple-touch-icon"[^>]*>\n/, ''],
@@ -127,7 +130,7 @@ export function buildSingle(root = ROOT) {
     [/<link rel="stylesheet" href="css\/globals\.css">/, () => `<style>\n${css.replace(/<\/style/gi, '<\\/style')}</style>`],
     [/<script type="module" src="js\/main\.js"><\/script>/, () => [
       `<script type="application/json" id="globals-bundle">${bundle}</script>`,
-      `<script>\n"use strict";\n${workerBoot}\n(${pageBoot})();\n</script>`,
+      `<script>\n"use strict";\n${lf(String(workerBoot))}\n(${lf(String(pageBoot))})();\n</script>`,
     ].join('\n')],
   ];
   for (const [re, replacement] of edits) {

@@ -1,0 +1,14 @@
+# LF line endings on every platform. Git for Windows would otherwise check text files out with
+# CRLF, which changes the vendored files' hashes (node tools/vendor.mjs --check).
+* text=auto eol=lf
+
+# Third-party files stay byte-for-byte as published: their sha256 is pinned in
+# vendor/vendor-lock.json, and a few of them use CRLF upstream.
+vendor/** -text
+assets/geo/** -text
+assets/stars/** -text
+tests/fixtures/sgp4-verification/** -text
+
+*.jpg binary
+*.jpeg binary
+*.png binary
