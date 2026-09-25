@@ -37,7 +37,9 @@ export function createBoot() {
       dots.textContent = '';
       this.progress(100, 'READY');
       setTimeout(() => {
-        $('#boot').classList.add('hidden');
+        const bootEl = $('#boot');
+        bootEl.classList.add('hidden');
+        setTimeout(() => { bootEl.style.display = 'none'; }, 1200); // gone for good after the fade
         const app = $('#app');
         app.classList.add('show');
         app.removeAttribute('aria-hidden');

@@ -30,7 +30,7 @@ export function initDataView(app) {
     box.replaceChildren(el('div', { class: 'note info' }, `Reading ${file.name}…`));
     try {
       const res = await app.importText(text, replace ? 'replace' : 'merge');
-      const items = [el('div', { class: 'note info' }, `Imported ${fmtInt(res.imported)} element sets from ${file.name}. Catalogue now holds ${fmtInt(res.count)} objects.`)];
+      const items = [el('div', { class: 'note info' }, `Imported ${fmtInt(res.imported)} element set${res.imported === 1 ? '' : 's'} from ${file.name}. Catalogue now holds ${fmtInt(res.count)} objects.`)];
       if (res.problemCount) items.push(el('div', { class: 'note' }, `${res.problemCount} issue(s): ${res.problems.slice(0, 5).join('; ')}${res.problemCount > 5 ? '…' : ''}`));
       box.replaceChildren(...items);
     } catch (err) {

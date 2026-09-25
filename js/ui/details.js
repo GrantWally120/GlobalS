@@ -94,6 +94,7 @@ export function initDetails(app) {
   return {
     show(i) {
       panel.hidden = false;
+      document.body.classList.add('detail-open');
       header(i);
       passes = null;
       chosen = -1;
@@ -101,6 +102,7 @@ export function initDetails(app) {
     },
     hide() {
       panel.hidden = true;
+      document.body.classList.remove('detail-open');
       passes = null;
     },
     setPasses(result) {

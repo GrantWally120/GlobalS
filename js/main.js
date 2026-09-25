@@ -131,6 +131,7 @@ async function start() {
   const skyView = initSkyView(app);
   const dataView = initDataView(app);
   const timebar = initTimebar(app);
+  clock.onChange(() => timebar.update(clock.now())); // pause/warp/jump show instantly
   initKeyboard(app);
   initInstall({ isLocal, params });
 
@@ -230,6 +231,7 @@ async function start() {
   Object.assign(app, {
     async select(i, { focus = false, passAt } = {}) {
       if (!app.meta || i < 0 || i >= app.meta.count) return;
+      app.poke?.();
       app.selected = i;
       const [record] = await propagator.call('records', { indices: [i] });
       if (app.selected !== i || !record) return;
@@ -298,6 +300,7 @@ async function start() {
       refreshOverhead();
     },
     async setStyle(style) {
+      app.poke?.();
       settings.style = style;
       saveSettings();
       tracking.setStyle(style);
@@ -314,6 +317,7 @@ async function start() {
       atmosphere.setStyle(settings.style);
     },
     setShow(key, on) {
+      app.poke?.();
       settings.show[key] = on;
       saveSettings();
       tracking.setToggle(key, on);
@@ -332,14 +336,17 @@ async function start() {
       if (app.meta) swarm.setShown(shownMask());
     },
     jumpTo(t) {
+      app.poke?.();
       clock.jump(t);
       swarm.invalidate();
       refreshOverhead();
     },
     setRate(r) {
+      app.poke?.();
       clock.setRate(r);
     },
     backToNow() {
+      app.poke?.();
       clock.backToNow();
       swarm.invalidate();
       refreshOverhead();
@@ -356,6 +363,10 @@ async function start() {
       for (const b of $$('.tabs button')) b.setAttribute('aria-selected', String(b.dataset.tab === name));
       for (const s of $$('#leftPanel > section')) s.hidden = s.id !== `view-${name}`;
       $('#leftPanel').classList.remove('collapsed');
+      if (window.matchMedia('(max-width: 820px)').matches) {
+        document.body.classList.remove('detail-open');
+        $('#detailPanel').hidden = true;
+      }
       if (name === 'passes' && Math.abs(clock.now() - tonightAt) > 1800e3) requestTonight();
       if (name === 'sky') skyView.update(app.overhead);
       if (name === 'data') refreshDataView();
@@ -445,8 +456,22 @@ async function start() {
   const propagatingChip = Object.assign(document.createElement('span'), { className: 'chip', textContent: 'PROPAGATING…', hidden: true });
   $('#chips').append(propagatingChip);
 
+  // Frame pacing: full rate while the user interacts or the camera animates, 30 fps when live and
+  // idle, ~2 fps when paused and idle (saves battery on laptops; satellites barely move per frame).
+  let lastInput = performance.now();
+  let lastDraw = 0;
+  const poke = () => { lastInput = performance.now(); };
+  for (const ev of ['pointerdown', 'pointermove', 'wheel', 'keydown', 'touchstart']) window.addEventListener(ev, poke, { passive: true });
+  stage.controls.addEventListener('change', poke);
+  app.poke = poke;
+
   function frame(now) {
     requestAnimationFrame(frame);
+    const busy = now - lastInput < 1500 || cams.tween || cams.tweenCamera || cams.mode === 'follow' || !swarm.ready;
+    const minGap = busy ? 0 : clock.rate === 0 ? 500 : 1000 / 30;
+    if (now - lastDraw < minGap - 2) return;
+    lastDraw = now;
+    const f0 = performance.now();
     const dt = now - lastFrame;
     lastFrame = now;
     if (dt > 0) fps = fps ? fps * 0.95 + (1000 / dt) * 0.05 : 1000 / dt;
@@ -491,6 +516,7 @@ async function start() {
     const { w, h } = stage.size();
     labels.update(w, h);
     stage.render();
+    app.frameMs = app.frameMs ? app.frameMs * 0.95 + (performance.now() - f0) * 0.05 : performance.now() - f0;
 
     if (now - lastUi > 250) {
       lastUi = now;
