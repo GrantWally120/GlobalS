@@ -1,0 +1,112 @@
+{
+ "schema": 1,
+ "version": "15ff26312556",
+ "generatedAt": "2026-10-03T21:56:51.192Z",
+ "source": {
+  "name": "CelesTrak",
+  "url": "https://celestrak.org/NORAD/elements/",
+  "note": "General perturbations (GP) orbital data in CCSDS OMM form, originally from the U.S. Space Force (18th/19th SDS) via Space-Track.org."
+ },
+ "files": {
+  "catalog": "catalog.json?v=15ff26312556",
+  "groups": "groups.json?v=15ff26312556"
+ },
+ "counts": {
+  "objects": 16779
+ },
+ "epoch": {
+  "min": "2026-09-11T12:27:56.057Z",
+  "median": "2026-10-03T03:37:04.273Z",
+  "max": "2026-10-04T19:13:46.581Z"
+ },
+ "dropped": {
+  "invalid": 0,
+  "propagation": 0
+ },
+ "groups": {
+  "active": {
+   "status": "fallback",
+   "count": 16636,
+   "fetchedAt": "2026-10-03T16:43:19.624Z",
+   "attemptedAt": "2026-10-03T21:46:42.784Z",
+   "reason": "failed"
+  },
+  "stations": {
+   "status": "fallback",
+   "count": 23,
+   "fetchedAt": "2026-10-03T16:43:21.911Z",
+   "attemptedAt": "2026-10-03T21:47:38.359Z",
+   "reason": "failed"
+  },
+  "visual": {
+   "status": "fallback",
+   "count": 156,
+   "fetchedAt": "2026-10-03T16:43:24.050Z",
+   "attemptedAt": "2026-10-03T21:48:34.734Z",
+   "reason": "failed"
+  },
+  "gps-ops": {
+   "status": "fallback",
+   "count": 32,
+   "fetchedAt": "2026-10-03T16:43:26.158Z",
+   "attemptedAt": "2026-10-03T21:49:30.202Z",
+   "reason": "failed"
+  },
+  "glo-ops": {
+   "status": "fallback",
+   "count": 29,
+   "fetchedAt": "2026-10-03T16:43:28.254Z",
+   "attemptedAt": "2026-10-03T21:50:24.248Z",
+   "reason": "failed"
+  },
+  "galileo": {
+   "status": "fallback",
+   "count": 32,
+   "fetchedAt": "2026-10-03T16:43:34.206Z",
+   "attemptedAt": "2026-10-03T21:51:20.999Z",
+   "reason": "failed"
+  },
+  "beidou": {
+   "status": "fallback",
+   "count": 54,
+   "fetchedAt": "2026-10-03T16:43:42.483Z",
+   "attemptedAt": "2026-10-03T21:52:16.182Z",
+   "reason": "failed"
+  },
+  "weather": {
+   "status": "fallback",
+   "count": 72,
+   "fetchedAt": "2026-10-03T16:43:49.086Z",
+   "attemptedAt": "2026-10-03T21:53:10.707Z",
+   "reason": "failed"
+  },
+  "resource": {
+   "status": "fallback",
+   "count": 167,
+   "fetchedAt": "2026-10-03T16:43:51.392Z",
+   "attemptedAt": "2026-10-03T21:54:03.785Z",
+   "reason": "failed"
+  },
+  "science": {
+   "status": "fallback",
+   "count": 46,
+   "fetchedAt": "2026-10-03T16:43:53.914Z",
+   "attemptedAt": "2026-10-03T21:54:58.750Z",
+   "reason": "failed"
+  },
+  "amateur": {
+   "status": "fallback",
+   "count": 96,
+   "fetchedAt": "2026-10-03T16:43:56.032Z",
+   "attemptedAt": "2026-10-03T21:55:56.392Z",
+   "reason": "failed"
+  },
+  "last-30-days": {
+   "status": "fallback",
+   "count": 179,
+   "fetchedAt": "2026-10-03T16:43:58.140Z",
+   "attemptedAt": "2026-10-03T21:56:51.133Z",
+   "reason": "failed"
+  }
+ }
+}
