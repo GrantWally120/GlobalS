@@ -1,0 +1,124 @@
+{
+ "schema": 1,
+ "version": "9c08b57c2d65",
+ "generatedAt": "2026-11-28T08:27:31.187Z",
+ "source": {
+  "name": "CelesTrak",
+  "url": "https://celestrak.org/NORAD/elements/",
+  "note": "General perturbations (GP) orbital data in CCSDS OMM form, originally from the U.S. Space Force (18th/19th SDS) via Space-Track.org."
+ },
+ "files": {
+  "catalog": "catalog.json?v=9c08b57c2d65",
+  "groups": "groups.json?v=9c08b57c2d65"
+ },
+ "counts": {
+  "objects": 17073
+ },
+ "epoch": {
+  "min": "2026-11-02T06:44:40.507Z",
+  "median": "2026-11-27T17:46:30.883Z",
+  "max": "2026-11-28T21:43:53.724Z"
+ },
+ "dropped": {
+  "invalid": 0,
+  "propagation": 0
+ },
+ "groups": {
+  "active": {
+   "status": "fresh",
+   "count": 16931,
+   "fetchedAt": "2026-11-28T08:27:07.194Z",
+   "attemptedAt": "2026-11-28T08:27:07.023Z",
+   "http": 200,
+   "bytes": 7086325
+  },
+  "stations": {
+   "status": "fresh",
+   "count": 18,
+   "fetchedAt": "2026-11-28T08:27:09.302Z",
+   "attemptedAt": "2026-11-28T08:27:09.302Z",
+   "http": 200,
+   "bytes": 7558
+  },
+  "visual": {
+   "status": "fresh",
+   "count": 156,
+   "fetchedAt": "2026-11-28T08:27:11.379Z",
+   "attemptedAt": "2026-11-28T08:27:11.378Z",
+   "http": 200,
+   "bytes": 64727
+  },
+  "gps-ops": {
+   "status": "fresh",
+   "count": 32,
+   "fetchedAt": "2026-11-28T08:27:14.401Z",
+   "attemptedAt": "2026-11-28T08:27:14.400Z",
+   "http": 200,
+   "bytes": 13235
+  },
+  "glo-ops": {
+   "status": "fresh",
+   "count": 27,
+   "fetchedAt": "2026-11-28T08:27:16.535Z",
+   "attemptedAt": "2026-11-28T08:27:16.534Z",
+   "http": 200,
+   "bytes": 11105
+  },
+  "galileo": {
+   "status": "fresh",
+   "count": 32,
+   "fetchedAt": "2026-11-28T08:27:18.609Z",
+   "attemptedAt": "2026-11-28T08:27:18.609Z",
+   "http": 200,
+   "bytes": 13244
+  },
+  "beidou": {
+   "status": "fresh",
+   "count": 37,
+   "fetchedAt": "2026-11-28T08:27:20.694Z",
+   "attemptedAt": "2026-11-28T08:27:20.693Z",
+   "http": 200,
+   "bytes": 15212
+  },
+  "weather": {
+   "status": "fresh",
+   "count": 75,
+   "fetchedAt": "2026-11-28T08:27:22.772Z",
+   "attemptedAt": "2026-11-28T08:27:22.771Z",
+   "http": 200,
+   "bytes": 30844
+  },
+  "resource": {
+   "status": "fresh",
+   "count": 167,
+   "fetchedAt": "2026-11-28T08:27:24.910Z",
+   "attemptedAt": "2026-11-28T08:27:24.909Z",
+   "http": 200,
+   "bytes": 69147
+  },
+  "science": {
+   "status": "fresh",
+   "count": 45,
+   "fetchedAt": "2026-11-28T08:27:26.983Z",
+   "attemptedAt": "2026-11-28T08:27:26.983Z",
+   "http": 200,
+   "bytes": 18495
+  },
+  "amateur": {
+   "status": "fresh",
+   "count": 99,
+   "fetchedAt": "2026-11-28T08:27:29.056Z",
+   "attemptedAt": "2026-11-28T08:27:29.055Z",
+   "http": 200,
+   "bytes": 41470
+  },
+  "last-30-days": {
+   "status": "fresh",
+   "count": 182,
+   "fetchedAt": "2026-11-28T08:27:31.142Z",
+   "attemptedAt": "2026-11-28T08:27:31.135Z",
+   "http": 200,
+   "bytes": 77069
+  }
+ }
+}
